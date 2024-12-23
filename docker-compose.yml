@@ -1,0 +1,24 @@
+# In your docker-compose.yml
+services:
+  backend:
+    build: ./backend
+    container_name: fastapi_container
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # so Docker SDK can talk to host Docker
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./frontend
+    container_name: react_container
+    expose:
+      - "3000"
+
+  nginx:
+    build: ./nginx
+    container_name: nginx_proxy
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
