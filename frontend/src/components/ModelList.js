@@ -50,9 +50,13 @@ function ModelList({ currentScreen }) {
     }, [variants]);
 
     const fetchModels = async () => {
+        // GET /models might be public, but if there's a token let's pass it anyway
+        const token = localStorage.getItem('authToken');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
         try {
-            const response = await axios.get('/api/models');
-            // Sort models so that active ones are first, and then by creation date descending
+            const response = await axios.get('/api/models', { headers });
+            // Sort models so that active ones are first, then by creation date descending
             const sortedModels = response.data.sort((a, b) => {
                 if (a.active === b.active) {
                     return new Date(b.created_at) - new Date(a.created_at);
@@ -82,12 +86,19 @@ function ModelList({ currentScreen }) {
             variantDict[i] = variantLabels[i] || i;
         }
 
+        const token = localStorage.getItem('authToken');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
         try {
             // POST request with the new format: { variants: {0:...,1:...}, name: '...' }
-            await axios.post('/api/create_model', {
-                variants: variantDict,
-                name: name,
-            });
+            await axios.post(
+                '/api/create_model',
+                {
+                    variants: variantDict,
+                    name: name,
+                },
+                { headers }
+            );
             fetchModels();
             setShowForm(false);
             setName('');
@@ -98,8 +109,11 @@ function ModelList({ currentScreen }) {
     };
 
     const handleDelete = async (modelId) => {
+        const token = localStorage.getItem('authToken');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
         try {
-            await axios.post(`/api/delete_model/${modelId}`);
+            await axios.post(`/api/delete_model/${modelId}`, {}, { headers });
             fetchModels();
         } catch (error) {
             console.error(error);

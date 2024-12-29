@@ -1,9 +1,10 @@
 import asyncio
 import random
 import docker.errors
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, status, Depends
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import docker
 from pydantic import BaseModel
 from typing import AsyncGenerator, Dict, Any, Union
@@ -27,7 +28,13 @@ CONFIG_FILE = "config.json"
 
 def load_config() -> dict:
     """Load config from a JSON file or return defaults."""
-    default_config = {"host": "127.0.0.1", "port": 8000, "debug": False}
+    default_config = {
+        "host": "127.0.0.1",
+        "port": 8000,
+        "debug": False,
+        "protected_api": False,  # <-- We'll store whether API is protected
+        "auth_token": None,  # <-- We'll store the token here
+    }
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             try:
@@ -48,6 +55,8 @@ def save_config(config: dict):
         json.dump(config, f, indent=2)
 
 
+config = load_config()
+
 app = FastAPI()
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,6 +68,36 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Create a Bearer security scheme
+security = HTTPBearer()
+
+
+def maybe_verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    If 'protected_api' is True, we validate the Bearer token
+    against the config's 'auth_token'. Otherwise, we do nothing.
+    """
+    current_config = load_config()  # reload in case changed
+
+    # If not protecting, skip check
+    if not current_config.get("protected_api"):
+        return
+
+    # If protecting, check token
+    if credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication scheme.",
+        )
+
+    token = credentials.credentials
+    if token != current_config.get("auth_token"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing token.",
+        )
 
 
 class ConfigModel(BaseModel):
@@ -185,8 +224,6 @@ models: dict[str, wMAB] = load_models()
 
 
 class CreateModelRequest(BaseModel):
-    # Instead of n_variants: int, we now have a dict that may contain
-    # int keys -> (string or int) labels
     variants: Dict[int, Union[str, int]]
     name: str
 
@@ -204,30 +241,65 @@ class RolloutGlobalVariantRequest(BaseModel):
     variant: Union[str, int]
 
 
+#
+# ------------------- ADMIN ENDPOINTS FOR TOKEN & PROTECTION -------------------
+#
+@app.get("/admin/get_protection")
+def get_protection_status():
+    cfg = load_config()
+    return {
+        "protected_api": cfg["protected_api"],
+        "auth_token": cfg["auth_token"],
+    }
+
+
+@app.post("/admin/set_protection")
+def set_protection(protected_api: bool = Body(...)):
+    cfg = load_config()
+    cfg["protected_api"] = protected_api
+
+    # If turning off, remove the token
+    if not protected_api:
+        cfg["auth_token"] = None
+    save_config(cfg)
+    return {
+        "protected_api": protected_api,
+        "auth_token": cfg["auth_token"],
+    }
+
+
+@app.post("/admin/generate_token")
+def generate_token():
+    """
+    Generate a one-time token. Overwrites any existing token.
+    Only relevant if protected_api is True.
+    """
+    cfg = load_config()
+    if not cfg.get("protected_api"):
+        raise HTTPException(
+            status_code=400,
+            detail="API protection must be enabled before generating a token.",
+        )
+    # Create a random token
+    new_token = uuid.uuid4().hex  # for demonstration
+    cfg["auth_token"] = new_token
+    save_config(cfg)
+    return {"token": new_token}
+
+
+#
+# ------------------- PROTECTED ENDPOINTS (USE maybe_verify_token) -------------
+#
+
+
 @app.post("/create_model")
-async def create_model(request: CreateModelRequest):
-    """
-    Create a new model. The user passes a dict for 'variants' such as:
-        {0: "red", 1: "blue"} or {0: 0, 1: 1}
-    Internally, we will keep arms = [0, 1, ...] (the keys),
-    plus two mappings:
-        variant_labels:  0 -> "red", 1 -> "blue"
-        label_variants: "red" -> 0, "blue" -> 1
-    """
+async def create_model(
+    request: CreateModelRequest,
+    _: Any = Depends(maybe_verify_token),  # <-- require token if protected_api
+):
     cb_model_id = str(uuid.uuid4())
-
-    # Sort or just list out the keys in ascending order:
-    # but you can also keep the order as is, if you prefer
     arms = sorted(request.variants.keys())
-
-    # variant_labels: internal_int -> user label
     variant_labels = {k: v for k, v in request.variants.items()}
-
-    # label_variants: user label -> internal_int
-    # This is the inverse mapping, allowing us to go from user label to internal arm
-    # Note: This only works if the user values are unique.
-    # If the user passed e.g. {0: 'red', 1: 'red'} that might cause a conflict.
-    # For simplicity, assume they are unique.
     label_variants = {v: k for k, v in request.variants.items()}
 
     models[cb_model_id] = wMAB(
@@ -243,22 +315,21 @@ async def create_model(request: CreateModelRequest):
 
 
 @app.post("/delete_model/{cb_model_id}")
-async def delete_model(cb_model_id: str):
+async def delete_model(cb_model_id: str, _: Any = Depends(maybe_verify_token)):
     if cb_model_id not in models:
         raise HTTPException(status_code=400, detail="Model ID does not exist")
     models[cb_model_id].deactivate()
-    save_model(cb_model_id, models[cb_model_id])  # Save deactivated model
+    save_model(cb_model_id, models[cb_model_id])
     delete_model_file(cb_model_id)
-    del models[cb_model_id]  # Remove from in-memory dict
+    del models[cb_model_id]
     return {"message": "Model deactivated and deleted"}
 
 
 @app.get("/models")
 async def get_models():
+    # PUBLIC endpoint (no token check) for demonstration
     response = []
     for model_id, model in models.items():
-        # If you prefer to show the user-friendly variant dictionary in the output,
-        # you can return model.variant_labels as "variants" below:
         response.append(
             {
                 "model_id": model_id,
@@ -289,7 +360,9 @@ async def get_models():
 
 
 @app.post("/update_model/{cb_model_id}")
-async def update_model(cb_model_id: str, request: UpdateModelRequest):
+async def update_model(
+    cb_model_id: str, request: UpdateModelRequest, _: Any = Depends(maybe_verify_token)
+):
     model = models.get(cb_model_id)
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
@@ -298,9 +371,8 @@ async def update_model(cb_model_id: str, request: UpdateModelRequest):
         decision = update["decision"]
         reward = update["reward"]
 
-        # Convert decision from user label (string or int) to internal int if needed
+        # Convert decision from user label to internal int if needed
         if isinstance(decision, str):
-            # If user passes "red" (example), map to 0
             if decision not in model.label_variants:
                 raise HTTPException(
                     status_code=400,
@@ -308,7 +380,6 @@ async def update_model(cb_model_id: str, request: UpdateModelRequest):
                 )
             decision = model.label_variants[decision]
         else:
-            # If it is an int, verify it's a valid arm
             if decision not in model.arms:
                 raise HTTPException(
                     status_code=400,
@@ -318,7 +389,7 @@ async def update_model(cb_model_id: str, request: UpdateModelRequest):
         features = {k: v for k, v in update.items() if k.startswith("feature")}
         feature_array = np.array([list(features.values())])
 
-        # Update the model's known features if this is the first time
+        # Update the model's known features if first time
         if model.update_requests == 0:
             for feature in features:
                 model._update_feature_list(feature)
@@ -330,7 +401,6 @@ async def update_model(cb_model_id: str, request: UpdateModelRequest):
         model._incr_latest_update_request()
         model._update_update_request_trail(variant=decision, reward=reward)
 
-    # Save on some schedule (currently: if model.update_requests % 100)
     if model.update_requests % 100:
         save_model(cb_model_id, model)
 
@@ -339,14 +409,15 @@ async def update_model(cb_model_id: str, request: UpdateModelRequest):
 
 @app.post("/rollout_global_variant/{cb_model_id}")
 async def rollout_global_variant(
-    cb_model_id: str, request: RolloutGlobalVariantRequest
+    cb_model_id: str,
+    request: RolloutGlobalVariantRequest,
+    _: Any = Depends(maybe_verify_token),
 ):
     model = models.get(cb_model_id)
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
 
     variant = request.variant
-    # Convert if user passes a string
     if isinstance(variant, str):
         if variant not in model.label_variants:
             raise HTTPException(
@@ -355,7 +426,6 @@ async def rollout_global_variant(
             )
         variant = model.label_variants[variant]
     else:
-        # Check if int is valid
         if variant not in model.arms:
             raise HTTPException(
                 status_code=400,
@@ -370,7 +440,7 @@ async def rollout_global_variant(
 
 
 @app.post("/clear_global_variant/{cb_model_id}")
-async def clear_global_variant(cb_model_id: str):
+async def clear_global_variant(cb_model_id: str, _: Any = Depends(maybe_verify_token)):
     model = models.get(cb_model_id)
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
@@ -380,16 +450,16 @@ async def clear_global_variant(cb_model_id: str):
 
 
 @app.post("/fetch_recommended_variant")
-async def fetch_recommended_variant(request: FetchActionRequest):
+async def fetch_recommended_variant(
+    request: FetchActionRequest, _: Any = Depends(maybe_verify_token)
+):
     cb_model_id = request.cb_model_id
     model = models.get(cb_model_id)
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
 
-    # If there's a global rollout, return that
     if model.global_rolled_out and model.get_global_variant() is not None:
         internal_variant = model.get_global_variant()
-        # convert to user-friendly label
         recommended_label = model.variant_labels.get(internal_variant, internal_variant)
         return {"recommended_variant": recommended_label}
 
@@ -402,15 +472,12 @@ async def fetch_recommended_variant(request: FetchActionRequest):
     else:
         internal_variant = model.predict(feature_array)
 
-    # Record usage metrics
     model._incr_prediction_request()
     model._incr_latest_prediction_request()
     model._update_prediction_request_trail(internal_variant)
 
-    # Convert internal arm to the user-friendly label if possible
     recommended_label = model.variant_labels.get(internal_variant, internal_variant)
 
-    # Periodic save
     if model.prediction_requests % 100:
         save_model(cb_model_id, model)
 
@@ -420,13 +487,12 @@ async def fetch_recommended_variant(request: FetchActionRequest):
 @app.get("/logs/stream")
 def stream_logs():
     """
-    Streams logs from a specific container in real time using the Docker SDK.
-    Returns a message if not running in Docker.
+    Streams logs from a Docker container in real time.
+    No token required by design (public).
     """
 
     def log_generator():
         try:
-            # Create a Docker client from environment (docker socket).
             client = docker.from_env()
             container = client.containers.get("fastapi_container")
             log_stream = container.logs(stream=True, follow=True)
@@ -440,7 +506,7 @@ def stream_logs():
             ERROR: this is an error
             TRACE: this is a trace
             """
-            for line in message.strip().splitlines():  # Split the message into lines
-                yield line + "\n"  # Add newline to each line
+            for line in message.strip().splitlines():
+                yield line + "\n"
 
     return StreamingResponse(log_generator(), media_type="text/plain")

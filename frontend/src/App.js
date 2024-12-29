@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ModelList from './components/ModelList';
 import LogViewer from './components/LogViewer';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -11,7 +11,135 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import Box from '@mui/material/Box';
+import Switch from '@mui/material/Switch';
+import Button from '@mui/material/Button';
+import axios from 'axios';
 
+// A simple Admin Panel embedded in this file
+function AdminPanel() {
+  const [isProtected, setIsProtected] = useState(false);
+  const [authToken, setAuthToken] = useState(null);
+  const [justGeneratedToken, setJustGeneratedToken] = useState('');
+
+  // On mount, check current protection status and token
+  useEffect(() => {
+    fetchProtectionStatus();
+  }, []);
+
+  const fetchProtectionStatus = async () => {
+    try {
+      const response = await axios.get('/admin/get_protection');
+      if (response.data?.protected_api) {
+        setIsProtected(true);
+      } else {
+        setIsProtected(false);
+      }
+      // We'll store the token locally if we have one
+      if (response.data?.auth_token) {
+        setAuthToken(response.data.auth_token);
+        // Also store it in localStorage so subsequent requests can use it
+        localStorage.setItem('authToken', response.data.auth_token);
+      } else {
+        setAuthToken(null);
+        localStorage.removeItem('authToken');
+      }
+    } catch (error) {
+      console.error('Failed to fetch protection status:', error);
+    }
+  };
+
+  const handleToggleProtection = async () => {
+    const newStatus = !isProtected;
+    setIsProtected(newStatus);
+
+    try {
+      // We send a top-level boolean, e.g. "true" or "false" (as text)
+      await axios.post('/admin/set_protection', JSON.stringify(newStatus), {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // If turning OFF, remove stored token
+      if (!newStatus) {
+        setAuthToken(null);
+        localStorage.removeItem('authToken');
+      }
+      // else: If turning ON, user can generate a token if needed
+
+    } catch (error) {
+      console.error('Failed to set protection status:', error);
+    }
+  };
+
+
+  const handleGenerateToken = async () => {
+    try {
+      const response = await axios.post('/admin/generate_token', {});
+      if (response.data?.token) {
+        // Show the freshly generated token in the UI, store it in localStorage
+        setJustGeneratedToken(response.data.token);
+        setAuthToken(response.data.token);
+        localStorage.setItem('authToken', response.data.token);
+      }
+    } catch (error) {
+      console.error('Failed to generate token:', error);
+    }
+  };
+
+  const handleCopyToken = async () => {
+    if (justGeneratedToken) {
+      await navigator.clipboard.writeText(justGeneratedToken);
+    }
+  };
+
+  return (
+    <div style={{ background: '#F9F9F9', padding: '2rem', borderRadius: '8px' }}>
+      <h2 style={{ fontFamily: 'Darker Grotesque', marginBottom: '1rem' }}>Admin</h2>
+
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+        <Switch checked={isProtected} onChange={handleToggleProtection} />
+        <span style={{ marginLeft: '0.5rem', fontFamily: 'Darker Grotesque', fontSize: '16px' }}>
+          Protect API with token
+        </span>
+      </div>
+
+      {isProtected && (
+        <>
+          <div style={{ marginBottom: '1rem', fontFamily: 'Darker Grotesque' }}>
+            <Button variant="contained" color="primary" onClick={handleGenerateToken}>
+              Generate New Token
+            </Button>
+          </div>
+
+          {justGeneratedToken && (
+            <div style={{ marginBottom: '1rem', background: '#FFF', padding: '1rem', borderRadius: '4px' }}>
+              <div style={{ fontFamily: 'Darker Grotesque', fontSize: '14px' }}>
+                <strong>New Token:</strong> {justGeneratedToken}
+              </div>
+              <Button
+                style={{ marginTop: '0.5rem' }}
+                variant="outlined"
+                color="secondary"
+                onClick={handleCopyToken}
+              >
+                Copy token
+              </Button>
+            </div>
+          )}
+
+          {authToken && !justGeneratedToken && (
+            <div style={{ marginBottom: '1rem', background: '#FFF', padding: '1rem', borderRadius: '4px' }}>
+              <div style={{ fontFamily: 'Darker Grotesque', fontSize: '14px' }}>
+                <strong>Current Token (from config):</strong> {authToken}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState('Tests');
@@ -138,9 +266,10 @@ function App() {
 
         {/* Main Content */}
         <Box sx={{ flexGrow: 1, padding: '2%', paddingLeft: '5%', paddingRight: '20%' }}>
-          {/* 2) Conditionally render either your ModelList or the Logs Viewer */}
           {currentScreen === 'Logs' ? (
             <LogViewer />
+          ) : currentScreen === 'Admin' ? (
+            <AdminPanel />
           ) : (
             <ModelList currentScreen={currentScreen} />
           )}

@@ -43,12 +43,17 @@ function ModelCard({ model, onDelete, onUpdate }) {
     };
 
     const handleVariantSelect = async (variantLabel) => {
+        const token = localStorage.getItem('authToken');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
         // The user can pick "Remove override" or a variant label. We'll send that to the server.
         if (variantLabel === 'Remove override') {
             // Call the clear_global_variant endpoint
             try {
                 await axios.post(
-                    `/api/clear_global_variant/${model.model_id}`
+                    `/api/clear_global_variant/${model.model_id}`,
+                    {},
+                    { headers }
                 );
                 if (onUpdate) {
                     onUpdate();
@@ -63,7 +68,8 @@ function ModelCard({ model, onDelete, onUpdate }) {
                 // The server will interpret it as a string if it doesn't parse as int
                 await axios.post(
                     `/api/rollout_global_variant/${model.model_id}`,
-                    { variant: variantLabel }
+                    { variant: variantLabel },
+                    { headers }
                 );
                 if (onUpdate) {
                     onUpdate();
