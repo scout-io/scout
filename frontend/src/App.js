@@ -14,6 +14,9 @@ import Box from '@mui/material/Box';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import axios from 'axios';
+import {
+  FaCopy
+} from 'react-icons/fa';
 
 // A simple Admin Panel embedded in this file
 function AdminPanel() {
@@ -94,12 +97,29 @@ function AdminPanel() {
   };
 
   return (
-    <div style={{ background: '#F9F9F9', padding: '2rem', borderRadius: '8px' }}>
-      <h2 style={{ fontFamily: 'Darker Grotesque', marginBottom: '1rem' }}>Admin</h2>
+    <div style={{ background: '#151515', padding: '2rem', borderRadius: '8px' }}>
+      <h2 style={{ fontFamily: 'Darker Grotesque', marginBottom: '1rem', color: 'white' }}>Admin</h2>
 
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-        <Switch checked={isProtected} onChange={handleToggleProtection} />
-        <span style={{ marginLeft: '0.5rem', fontFamily: 'Darker Grotesque', fontSize: '16px' }}>
+        <Switch
+          checked={isProtected}
+          onChange={handleToggleProtection}
+          sx={{
+            // Thumb (circle) color when checked
+            '& .Mui-checked': {
+              color: 'white !important',
+            },
+            // Track color when checked
+            '& .Mui-checked + .MuiSwitch-track': {
+              backgroundColor: '#3CBC84 !important',
+            },
+            // Dark track color when not checked
+            '& .MuiSwitch-track': {
+              backgroundColor: '#444 !important',
+            },
+          }}
+        />
+        <span style={{ marginLeft: '0.5rem', fontFamily: 'Darker Grotesque', fontSize: '16px', color: 'white' }}>
           Protect API with token
         </span>
       </div>
@@ -107,37 +127,54 @@ function AdminPanel() {
       {isProtected && (
         <>
           <div style={{ marginBottom: '1rem', fontFamily: 'Darker Grotesque' }}>
-            <Button variant="contained" color="primary" onClick={handleGenerateToken}>
+            <Button variant="contained"
+              type="submit"
+              sx={{
+                backgroundColor: '#333333',
+                color: '#FFF',
+                fontWeight: 500,
+                fontSize: '10pt',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                width: '30%',
+                '&:hover': {
+                  backgroundColor: '#444444',
+                },
+              }}
+              onClick={handleGenerateToken}>
               Generate New Token
             </Button>
           </div>
 
           {justGeneratedToken && (
-            <div style={{ marginBottom: '1rem', background: '#FFF', padding: '1rem', borderRadius: '4px' }}>
-              <div style={{ fontFamily: 'Darker Grotesque', fontSize: '14px' }}>
+            <div style={{ marginBottom: '1rem', background: '#FFF', padding: '1rem', borderRadius: '4px', backgroundColor: '#333333' }}>
+              <div style={{
+                fontFamily: 'monospace', fontSize: '14px', color: 'white'
+              }}>
                 <strong>New Token:</strong> {justGeneratedToken}
+                <FaCopy
+                  style={{ marginLeft: '10px', cursor: 'pointer', color: '#C0C1C2' }}
+                  onClick={handleCopyToken}
+                />
               </div>
-              <Button
-                style={{ marginTop: '0.5rem' }}
-                variant="outlined"
-                color="secondary"
-                onClick={handleCopyToken}
-              >
-                Copy token
-              </Button>
-            </div>
-          )}
 
-          {authToken && !justGeneratedToken && (
-            <div style={{ marginBottom: '1rem', background: '#FFF', padding: '1rem', borderRadius: '4px' }}>
-              <div style={{ fontFamily: 'Darker Grotesque', fontSize: '14px' }}>
-                <strong>Current Token (from config):</strong> {authToken}
-              </div>
+
             </div>
-          )}
+          )
+          }
+
+          {/* {
+            authToken && !justGeneratedToken && (
+              <div style={{ marginBottom: '1rem', background: '#FFF', padding: '1rem', borderRadius: '4px' }}>
+                <div style={{ fontFamily: 'Darker Grotesque', fontSize: '14px' }}>
+                  <strong>Current Token (from config):</strong> {authToken}
+                </div>
+              </div>
+            )
+          } */}
         </>
       )}
-    </div>
+    </div >
   );
 }
 

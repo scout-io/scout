@@ -36,6 +36,9 @@ function ModelList({ currentScreen }) {
     // For each variant (0 to variants-1), we store a label (string).
     const [variantLabels, setVariantLabels] = useState([]);
 
+    // Search term for filtering
+    const [searchTerm, setSearchTerm] = useState('');
+
     useEffect(() => {
         fetchModels();
     }, []);
@@ -82,7 +85,6 @@ function ModelList({ currentScreen }) {
         // Keys are 0..(variants-1); values are whatever user typed or fallback to index
         const variantDict = {};
         for (let i = 0; i < variants; i++) {
-            // If user left the field empty, we can default to the integer
             variantDict[i] = variantLabels[i] || i;
         }
 
@@ -120,189 +122,327 @@ function ModelList({ currentScreen }) {
         }
     };
 
+    // Filter models by name OR model_id, case-insensitive
+    const filteredModels = models.filter((model) => {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        const modelName = model.name?.toLowerCase() || '';
+        const modelId = model.model_id?.toLowerCase() || '';
+        return modelName.includes(lowerSearchTerm) || modelId.includes(lowerSearchTerm);
+    });
+
     return (
         <ThemeProvider theme={theme}>
             <Box>
                 {currentScreen === 'Tests' && (
                     <Box>
-                        <Button
-                            variant="contained"
-                            onClick={() => setShowForm(!showForm)}
-                            sx={{
-                                mb: 3,
-                                backgroundColor: '#1D1D1D',
-                                color: '#FFF',
-                                fontFamily: 'Darker Grotesque',
-                                fontWeight: 500,
-                                fontSize: '12pt',
-                                borderRadius: '5px',
-                                padding: '7px 15px',
-                                boxShadow: 0,
-                                '&:hover': {
-                                    backgroundColor: '#333333',
-                                },
-                            }}
-                        >
-                            Create Test ＋
-                        </Button>
-
-                        {showForm && (
-                            <Card
+                        {/* When form is collapsed, put "Create Test" and Search on the same row */}
+                        {!showForm && (
+                            <Box
                                 sx={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
                                     mb: 3,
-                                    p: 0,
-                                    borderRadius: 2,
-                                    boxShadow: 3,
-                                    backgroundColor: '#1D1D1D',
-                                    color: '#FFF',
                                 }}
                             >
-                                <CardContent>
-                                    <form onSubmit={handleSubmit}>
-                                        <Grid container spacing={2} alignItems="center">
-                                            {/* Model Name */}
-                                            <Grid item xs={12} sm={6}>
-                                                <TextField
-                                                    label="Test Name"
-                                                    fullWidth
-                                                    required
-                                                    value={name}
-                                                    onChange={(e) => setName(e.target.value)}
-                                                    variant="outlined"
-                                                    sx={{
-                                                        mb: 2,
-                                                        backgroundColor: '#333333',
-                                                        borderRadius: '8px',
-                                                        '& .MuiOutlinedInput-root': {
-                                                            color: '#FFF',
-                                                            '& fieldset': {
-                                                                borderColor: '#444',
-                                                            },
-                                                            '&:hover fieldset': {
-                                                                borderColor: '#555',
-                                                            },
-                                                            '&.Mui-focused fieldset': {
-                                                                borderColor: '#FFF',
-                                                            },
-                                                        },
-                                                        '& .MuiInputLabel-root': {
-                                                            color: '#FFF',
-                                                        },
-                                                        '& .MuiInputLabel-root.Mui-focused': {
-                                                            color: '#FFF',
-                                                        },
-                                                    }}
-                                                />
-                                            </Grid>
-                                            {/* Number of variants */}
-                                            <Grid item xs={12} sm={6}>
-                                                <TextField
-                                                    label="Number of Variants"
-                                                    type="number"
-                                                    fullWidth
-                                                    value={variants}
-                                                    onChange={(e) => {
-                                                        const num = parseInt(e.target.value, 10);
-                                                        setVariants(num > 0 ? num : 1);
-                                                    }}
-                                                    variant="outlined"
-                                                    InputLabelProps={{ style: { fontSize: 16 } }}
-                                                    sx={{
-                                                        mb: 2,
-                                                        backgroundColor: '#333333',
-                                                        borderRadius: '8px',
-                                                        '& .MuiOutlinedInput-root': {
-                                                            color: '#FFF',
-                                                            '& fieldset': {
-                                                                borderColor: '#444',
-                                                            },
-                                                            '&:hover fieldset': {
-                                                                borderColor: '#555',
-                                                            },
-                                                            '&.Mui-focused fieldset': {
-                                                                borderColor: '#FFF',
-                                                            },
-                                                        },
-                                                        '& .MuiInputLabel-root': {
-                                                            color: '#FFF',
-                                                        },
-                                                        '& .MuiInputLabel-root.Mui-focused': {
-                                                            color: '#FFF',
-                                                        },
-                                                    }}
-                                                />
-                                            </Grid>
-                                        </Grid>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => setShowForm(true)}
+                                    sx={{
+                                        backgroundColor: '#1D1D1D',
+                                        color: '#FFF',
+                                        fontFamily: 'Darker Grotesque',
+                                        fontWeight: 500,
+                                        fontSize: '12pt',
+                                        borderRadius: '5px',
+                                        padding: '7px 15px',
+                                        boxShadow: 0,
+                                        '&:hover': {
+                                            backgroundColor: '#333333',
+                                        },
+                                    }}
+                                >
+                                    Create Test ＋
+                                </Button>
 
-                                        {/* Variant labels (one text field per variant) */}
-                                        <Fade in={true} timeout={500}>
-                                            <Grid container spacing={2} sx={{ mt: 1 }}>
-                                                {Array.from({ length: variants }, (_, i) => (
-                                                    <Grid item xs={12} key={i}>
-                                                        <TextField
-                                                            label={`Variant ${i + 1} Label`}
-                                                            fullWidth
-                                                            value={variantLabels[i] ?? ''}
-                                                            onChange={(e) =>
-                                                                handleVariantLabelChange(i, e.target.value)
-                                                            }
-                                                            variant="outlined"
-                                                            sx={{
-                                                                backgroundColor: '#333333',
-                                                                borderRadius: '8px',
-                                                                '& .MuiOutlinedInput-root': {
-                                                                    color: '#FFF',
-                                                                    '& fieldset': {
-                                                                        borderColor: '#444',
-                                                                    },
-                                                                    '&:hover fieldset': {
-                                                                        borderColor: '#555',
-                                                                    },
-                                                                    '&.Mui-focused fieldset': {
-                                                                        borderColor: '#FFF',
-                                                                    },
-                                                                },
-                                                                '& .MuiInputLabel-root': {
-                                                                    color: '#FFF',
-                                                                },
-                                                                '& .MuiInputLabel-root.Mui-focused': {
-                                                                    color: '#FFF',
-                                                                },
-                                                            }}
-                                                        />
-                                                    </Grid>
-                                                ))}
-                                            </Grid>
-                                        </Fade>
+                                {/* Search bar (collapsed state) */}
+                                <TextField
+                                    label="⌕"
+                                    variant="outlined"
+                                    size='small'
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    sx={{
+                                        // Target the root of the outlined input
+                                        '& .MuiOutlinedInput-root': {
+                                            // Round corners on the container
+                                            borderRadius: '8px',
+                                            // Apply a background color to match the same container
+                                            backgroundColor: '#333333',
+                                            // Remove the outline border
+                                            '& fieldset': {
+                                                border: 'none',
+                                            },
+                                            '&:hover fieldset': {
+                                                border: 'none',
+                                            },
+                                            '&.Mui-focused fieldset': {
+                                                border: 'none',
+                                            },
+                                        },
 
-                                        <Grid container spacing={2} sx={{ mt: 2 }}>
-                                            <Grid item xs={12}>
-                                                <Button
-                                                    variant="contained"
-                                                    type="submit"
-                                                    sx={{
-                                                        backgroundColor: '#333333',
-                                                        color: '#FFF',
-                                                        fontWeight: 500,
-                                                        fontSize: '12pt',
-                                                        padding: '10px 20px',
-                                                        borderRadius: '8px',
-                                                        width: '100%',
-                                                        '&:hover': {
-                                                            backgroundColor: '#444444',
-                                                        },
-                                                    }}
-                                                >
-                                                    Generate Endpoint
-                                                </Button>
-                                            </Grid>
-                                        </Grid>
-                                    </form>
-                                </CardContent>
-                            </Card>
+                                        // Ensure the notched outline also has the same borderRadius
+                                        '& .MuiOutlinedInput-notchedOutline': {
+                                            borderRadius: '8px',
+                                            // If you still see a faint outline, you can also set border: 'none' here
+                                            border: 'none',
+                                        },
+
+                                        // (Optional) label styling
+                                        '& .MuiInputLabel-root': {
+                                            color: '#FFF',
+                                        },
+                                        '& .MuiInputLabel-root.Mui-focused': {
+                                            color: '#FFF',
+                                        },
+                                    }}
+                                />
+                            </Box>
                         )}
 
-                        {models.map((model) => (
+                        {/* When form is expanded, put the search bar below the card */}
+                        {showForm && (
+                            <Box sx={{ mb: 3 }}>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => setShowForm(false)}
+                                    sx={{
+                                        mb: 2,
+                                        backgroundColor: '#1D1D1D',
+                                        color: '#FFF',
+                                        fontFamily: 'Darker Grotesque',
+                                        fontWeight: 500,
+                                        fontSize: '12pt',
+                                        borderRadius: '5px',
+                                        padding: '7px 15px',
+                                        boxShadow: 0,
+                                        '&:hover': {
+                                            backgroundColor: '#333333',
+                                        },
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+
+                                <Card
+                                    sx={{
+                                        mb: 2,
+                                        p: 0,
+                                        borderRadius: 2,
+                                        boxShadow: 3,
+                                        backgroundColor: '#1D1D1D',
+                                        color: '#FFF',
+                                    }}
+                                >
+                                    <CardContent>
+                                        <form onSubmit={handleSubmit}>
+                                            <Grid container spacing={2} alignItems="center">
+                                                {/* Model Name */}
+                                                <Grid item xs={12} sm={6}>
+                                                    <TextField
+                                                        label="Test Name"
+                                                        fullWidth
+                                                        required
+                                                        value={name}
+                                                        onChange={(e) => setName(e.target.value)}
+                                                        variant="outlined"
+                                                        sx={{
+                                                            mb: 2,
+                                                            backgroundColor: '#333333',
+                                                            borderRadius: '8px',
+                                                            '& .MuiOutlinedInput-root': {
+                                                                color: '#FFF',
+                                                                '& fieldset': {
+                                                                    borderColor: '#444',
+                                                                },
+                                                                '&:hover fieldset': {
+                                                                    borderColor: '#555',
+                                                                },
+                                                                '&.Mui-focused fieldset': {
+                                                                    borderColor: '#FFF',
+                                                                },
+                                                            },
+                                                            '& .MuiInputLabel-root': {
+                                                                color: '#FFF',
+                                                            },
+                                                            '& .MuiInputLabel-root.Mui-focused': {
+                                                                color: '#FFF',
+                                                            },
+                                                        }}
+                                                    />
+                                                </Grid>
+
+                                                {/* Number of variants */}
+                                                <Grid item xs={12} sm={6}>
+                                                    <TextField
+                                                        label="Number of Variants"
+                                                        type="number"
+                                                        fullWidth
+                                                        value={variants}
+                                                        onChange={(e) => {
+                                                            const num = parseInt(e.target.value, 10);
+                                                            setVariants(num > 0 ? num : 1);
+                                                        }}
+                                                        variant="outlined"
+                                                        InputLabelProps={{ style: { fontSize: 16 } }}
+                                                        sx={{
+                                                            mb: 2,
+                                                            backgroundColor: '#333333',
+                                                            borderRadius: '8px',
+                                                            '& .MuiOutlinedInput-root': {
+                                                                color: '#FFF',
+                                                                '& fieldset': {
+                                                                    borderColor: '#444',
+                                                                },
+                                                                '&:hover fieldset': {
+                                                                    borderColor: '#555',
+                                                                },
+                                                                '&.Mui-focused fieldset': {
+                                                                    borderColor: '#FFF',
+                                                                },
+                                                            },
+                                                            '& .MuiInputLabel-root': {
+                                                                color: '#FFF',
+                                                            },
+                                                            '& .MuiInputLabel-root.Mui-focused': {
+                                                                color: '#FFF',
+                                                            },
+                                                        }}
+                                                    />
+                                                </Grid>
+                                            </Grid>
+
+                                            {/* Variant labels (one text field per variant) */}
+                                            <Fade in={true} timeout={500}>
+                                                <Grid container spacing={2} sx={{ mt: 1 }}>
+                                                    {Array.from({ length: variants }, (_, i) => (
+                                                        <Grid item xs={12} key={i}>
+                                                            <TextField
+                                                                label={`Variant ${i + 1} Label`}
+                                                                fullWidth
+                                                                value={variantLabels[i] ?? ''}
+                                                                onChange={(e) =>
+                                                                    handleVariantLabelChange(i, e.target.value)
+                                                                }
+                                                                variant="outlined"
+                                                                sx={{
+                                                                    backgroundColor: '#333333',
+                                                                    borderRadius: '8px',
+                                                                    '& .MuiOutlinedInput-root': {
+                                                                        color: '#FFF',
+                                                                        '& fieldset': {
+                                                                            borderColor: '#444',
+                                                                        },
+                                                                        '&:hover fieldset': {
+                                                                            borderColor: '#555',
+                                                                        },
+                                                                        '&.Mui-focused fieldset': {
+                                                                            borderColor: '#FFF',
+                                                                        },
+                                                                    },
+                                                                    '& .MuiInputLabel-root': {
+                                                                        color: '#FFF',
+                                                                    },
+                                                                    '& .MuiInputLabel-root.Mui-focused': {
+                                                                        color: '#FFF',
+                                                                    },
+                                                                }}
+                                                            />
+                                                        </Grid>
+                                                    ))}
+                                                </Grid>
+                                            </Fade>
+
+                                            <Grid container spacing={2} sx={{ mt: 2 }}>
+                                                <Grid item xs={12}>
+                                                    <Button
+                                                        variant="contained"
+                                                        type="submit"
+                                                        sx={{
+                                                            backgroundColor: '#333333',
+                                                            color: '#FFF',
+                                                            fontWeight: 500,
+                                                            fontSize: '12pt',
+                                                            padding: '10px 20px',
+                                                            borderRadius: '8px',
+                                                            width: '100%',
+                                                            '&:hover': {
+                                                                backgroundColor: '#444444',
+                                                            },
+                                                        }}
+                                                    >
+                                                        Generate Endpoint
+                                                    </Button>
+                                                </Grid>
+                                            </Grid>
+                                        </form>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Search bar (expanded state, placed below the card) */}
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        justifyContent: 'flex-end',
+                                    }}
+                                >
+                                    <TextField
+                                        label="⌕"
+                                        variant="outlined"
+                                        size='small'
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        sx={{
+                                            // Target the root of the outlined input
+                                            '& .MuiOutlinedInput-root': {
+                                                // Round corners on the container
+                                                borderRadius: '8px',
+                                                // Apply a background color to match the same container
+                                                backgroundColor: '#333333',
+                                                // Remove the outline border
+                                                '& fieldset': {
+                                                    border: 'none',
+                                                },
+                                                '&:hover fieldset': {
+                                                    border: 'none',
+                                                },
+                                                '&.Mui-focused fieldset': {
+                                                    border: 'none',
+                                                },
+                                            },
+
+                                            // Ensure the notched outline also has the same borderRadius
+                                            '& .MuiOutlinedInput-notchedOutline': {
+                                                borderRadius: '8px',
+                                                // If you still see a faint outline, you can also set border: 'none' here
+                                                border: 'none',
+                                            },
+
+                                            // (Optional) label styling
+                                            '& .MuiInputLabel-root': {
+                                                color: '#FFF',
+                                            },
+                                            '& .MuiInputLabel-root.Mui-focused': {
+                                                color: '#FFF',
+                                            },
+                                        }}
+                                    />
+                                </Box>
+                            </Box>
+                        )}
+
+                        {/* Render filtered models */}
+                        {filteredModels.map((model) => (
                             <ModelCard
                                 key={model.model_id}
                                 model={model}

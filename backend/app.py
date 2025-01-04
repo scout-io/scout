@@ -71,7 +71,7 @@ app.add_middleware(
 
 
 # Create a Bearer security scheme
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def maybe_verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -79,24 +79,23 @@ def maybe_verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
     If 'protected_api' is True, we validate the Bearer token
     against the config's 'auth_token'. Otherwise, we do nothing.
     """
-    current_config = load_config()  # reload in case changed
+    current_config = load_config()
 
-    # If not protecting, skip check
+    # If not protecting, skip check entirely
     if not current_config.get("protected_api"):
         return
 
-    # If protecting, check token
-    if credentials.scheme.lower() != "bearer":
+    # If we *are* protecting, but there's no credentials or bad scheme, raise an exception
+    if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication scheme.",
+            detail="Missing or invalid token scheme.",
         )
 
     token = credentials.credentials
     if token != current_config.get("auth_token"):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing token.",
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing token."
         )
 
 
