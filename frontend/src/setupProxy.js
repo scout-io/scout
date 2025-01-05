@@ -6,9 +6,6 @@ module.exports = function (app) {
         createProxyMiddleware({
             target: 'http://127.0.0.1:8000',
             changeOrigin: true,
-            pathRewrite: {
-                '^/api': '', // remove "/api" from the forwarded URL
-            },
         })
     );
 
@@ -25,6 +22,17 @@ module.exports = function (app) {
         createProxyMiddleware({
             target: 'http://127.0.0.1:8000',
             changeOrigin: true,
+        })
+    );
+
+    app.use(
+        '/openapi',
+        createProxyMiddleware({
+            target: 'http://127.0.0.1:8000/openapi.json',
+            changeOrigin: true,
+            pathRewrite: {
+                '^/openapi': '',
+            },
         })
     );
 };

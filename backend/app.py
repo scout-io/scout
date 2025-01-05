@@ -57,7 +57,7 @@ def save_config(config: dict):
 
 config = load_config()
 
-app = FastAPI()
+app = FastAPI(title="Scout")
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -291,7 +291,7 @@ def generate_token():
 #
 
 
-@app.post("/create_model")
+@app.post("/api/create_model")
 async def create_model(
     request: CreateModelRequest,
     _: Any = Depends(maybe_verify_token),  # <-- require token if protected_api
@@ -313,7 +313,7 @@ async def create_model(
     return {"message": "Model created successfully", "model_id": cb_model_id}
 
 
-@app.post("/delete_model/{cb_model_id}")
+@app.post("/api/delete_model/{cb_model_id}")
 async def delete_model(cb_model_id: str, _: Any = Depends(maybe_verify_token)):
     if cb_model_id not in models:
         raise HTTPException(status_code=400, detail="Model ID does not exist")
@@ -324,7 +324,7 @@ async def delete_model(cb_model_id: str, _: Any = Depends(maybe_verify_token)):
     return {"message": "Model deactivated and deleted"}
 
 
-@app.get("/models")
+@app.get("/api/models")
 async def get_models():
     # PUBLIC endpoint (no token check) for demonstration
     response = []
@@ -358,7 +358,7 @@ async def get_models():
     return jsonable_encoder(response)
 
 
-@app.post("/update_model/{cb_model_id}")
+@app.post("/api/update_model/{cb_model_id}")
 async def update_model(
     cb_model_id: str, request: UpdateModelRequest, _: Any = Depends(maybe_verify_token)
 ):
@@ -406,7 +406,7 @@ async def update_model(
     return {"message": "Model updated successfully"}
 
 
-@app.post("/rollout_global_variant/{cb_model_id}")
+@app.post("/api/rollout_global_variant/{cb_model_id}")
 async def rollout_global_variant(
     cb_model_id: str,
     request: RolloutGlobalVariantRequest,
@@ -438,7 +438,7 @@ async def rollout_global_variant(
     }
 
 
-@app.post("/clear_global_variant/{cb_model_id}")
+@app.post("/api/clear_global_variant/{cb_model_id}")
 async def clear_global_variant(cb_model_id: str, _: Any = Depends(maybe_verify_token)):
     model = models.get(cb_model_id)
     if not model:
@@ -448,7 +448,7 @@ async def clear_global_variant(cb_model_id: str, _: Any = Depends(maybe_verify_t
     return {"message": f"Global variant cleared for model {cb_model_id}"}
 
 
-@app.post("/fetch_recommended_variant")
+@app.post("/api/fetch_recommended_variant")
 async def fetch_recommended_variant(
     request: FetchActionRequest, _: Any = Depends(maybe_verify_token)
 ):

@@ -14,9 +14,9 @@ import Box from '@mui/material/Box';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import axios from 'axios';
-import {
-  FaCopy
-} from 'react-icons/fa';
+import { FaCopy } from 'react-icons/fa';
+import { ApiReferenceReact } from '@scalar/api-reference-react'
+import '@scalar/api-reference-react/style.css'
 
 // A simple Admin Panel embedded in this file
 function AdminPanel() {
@@ -75,7 +75,6 @@ function AdminPanel() {
     }
   };
 
-
   const handleGenerateToken = async () => {
     try {
       const response = await axios.post('/admin/generate_token', {});
@@ -127,7 +126,8 @@ function AdminPanel() {
       {isProtected && (
         <>
           <div style={{ marginBottom: '1rem', fontFamily: 'Darker Grotesque' }}>
-            <Button variant="contained"
+            <Button
+              variant="contained"
               type="submit"
               sx={{
                 backgroundColor: '#333333',
@@ -141,40 +141,40 @@ function AdminPanel() {
                   backgroundColor: '#444444',
                 },
               }}
-              onClick={handleGenerateToken}>
+              onClick={handleGenerateToken}
+            >
               Generate New Token
             </Button>
           </div>
 
           {justGeneratedToken && (
-            <div style={{ marginBottom: '1rem', background: '#FFF', padding: '1rem', borderRadius: '4px', backgroundColor: '#333333' }}>
-              <div style={{
-                fontFamily: 'monospace', fontSize: '14px', color: 'white'
-              }}>
+            <div
+              style={{
+                marginBottom: '1rem',
+                background: '#FFF',
+                padding: '1rem',
+                borderRadius: '4px',
+                backgroundColor: '#333333',
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '14px',
+                  color: 'white',
+                }}
+              >
                 <strong>New Token:</strong> {justGeneratedToken}
                 <FaCopy
                   style={{ marginLeft: '10px', cursor: 'pointer', color: '#C0C1C2' }}
                   onClick={handleCopyToken}
                 />
               </div>
-
-
             </div>
-          )
-          }
-
-          {/* {
-            authToken && !justGeneratedToken && (
-              <div style={{ marginBottom: '1rem', background: '#FFF', padding: '1rem', borderRadius: '4px' }}>
-                <div style={{ fontFamily: 'Darker Grotesque', fontSize: '14px' }}>
-                  <strong>Current Token (from config):</strong> {authToken}
-                </div>
-              </div>
-            )
-          } */}
+          )}
         </>
       )}
-    </div >
+    </div>
   );
 }
 
@@ -208,7 +208,7 @@ function App() {
         </Container>
       </Navbar>
 
-      <Box sx={{ display: 'flex', height: '100vh' }}>
+      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
         {/* Sidebar */}
         <Box
           sx={{
@@ -216,7 +216,7 @@ function App() {
             bgcolor: '#151515',
             color: '#FFF',
             display: 'flex',
-            flexDirection: 'column',
+            flexDirection: 'column'
           }}
         >
           <List component="nav">
@@ -274,6 +274,32 @@ function App() {
             </ListItem>
             <ListItem disablePadding>
               <ListItemButton
+                selected={currentScreen === 'API Sandbox'}
+                onClick={() => setCurrentScreen('API Sandbox')}
+                sx={{
+                  color: '#FFF',
+                  '&.Mui-selected': {
+                    backgroundColor: '#333333',
+                  },
+                  '&:hover': {
+                    backgroundColor: '#444444',
+                  },
+                }}
+              >
+                <ListItemText
+                  primary="𐄳  API Sandbox"
+                  sx={{
+                    '& .MuiTypography-root': {
+                      fontFamily: 'Darker Grotesque',
+                      fontSize: '12pt',
+                      textAlign: 'right',
+                    },
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
                 selected={currentScreen === 'Logs'}
                 onClick={() => setCurrentScreen('Logs')}
                 sx={{
@@ -302,16 +328,47 @@ function App() {
         </Box>
 
         {/* Main Content */}
-        <Box sx={{ flexGrow: 1, padding: '2%', paddingLeft: '5%', paddingRight: '20%' }}>
+        <Box
+          sx={{
+            flexGrow: 1,
+            padding: '2%',
+            paddingLeft: '5%',
+            paddingRight: currentScreen === 'API Sandbox' ? '5%' : '20%', // Conditional padding
+          }}
+        >
           {currentScreen === 'Logs' ? (
             <LogViewer />
           ) : currentScreen === 'Admin' ? (
             <AdminPanel />
+          ) : currentScreen === 'API Sandbox' ? (
+            <div
+              style={{
+                '--scalar-background-1': '#151515',
+                borderRadius: '8px',
+                overflow: 'hidden'
+              }}
+            >
+              <ApiReferenceReact
+                configuration={{
+                  spec: {
+                    url: '/openapi',
+                  },
+                  hideClientButton: true,
+                  hideDownloadButton: true,
+                  hideModels: true,
+                  hideSearch: true,
+                  darkMode: true,
+                  hideDarkModeToggle: true,
+                  theme: 'none',
+                }}
+              />
+            </div>
           ) : (
             <ModelList currentScreen={currentScreen} />
           )}
         </Box>
-      </Box>
+
+      </Box >
     </>
   );
 }

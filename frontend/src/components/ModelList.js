@@ -11,6 +11,13 @@ import Typography from '@mui/material/Typography';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import Fade from '@mui/material/Fade';
 
+// --- Added MUI Dialog imports for the delete confirmation modal ---
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+
 const theme = createTheme({
     typography: {
         fontFamily: 'Darker Grotesque, sans-serif',
@@ -38,6 +45,10 @@ function ModelList({ currentScreen }) {
 
     // Search term for filtering
     const [searchTerm, setSearchTerm] = useState('');
+
+    // --- State for delete confirmation dialog ---
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [modelIdToDelete, setModelIdToDelete] = useState(null);
 
     useEffect(() => {
         fetchModels();
@@ -110,6 +121,7 @@ function ModelList({ currentScreen }) {
         }
     };
 
+    // --- Actual Axios delete call (will be triggered after user confirms) ---
     const handleDelete = async (modelId) => {
         const token = localStorage.getItem('authToken');
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -120,6 +132,26 @@ function ModelList({ currentScreen }) {
         } catch (error) {
             console.error(error);
         }
+    };
+
+    // --- Open the dialog, storing which model we want to delete ---
+    const handleOpenDeleteDialog = (modelId) => {
+        setModelIdToDelete(modelId);
+        setDeleteDialogOpen(true);
+    };
+
+    // --- Close the dialog without deleting ---
+    const handleCloseDeleteDialog = () => {
+        setDeleteDialogOpen(false);
+        setModelIdToDelete(null);
+    };
+
+    // --- If user confirms, call handleDelete, then close the dialog ---
+    const handleConfirmDelete = async () => {
+        if (modelIdToDelete) {
+            await handleDelete(modelIdToDelete);
+        }
+        handleCloseDeleteDialog();
     };
 
     // Filter models by name OR model_id, case-insensitive
@@ -194,7 +226,6 @@ function ModelList({ currentScreen }) {
                                         // Ensure the notched outline also has the same borderRadius
                                         '& .MuiOutlinedInput-notchedOutline': {
                                             borderRadius: '8px',
-                                            // If you still see a faint outline, you can also set border: 'none' here
                                             border: 'none',
                                         },
 
@@ -424,7 +455,6 @@ function ModelList({ currentScreen }) {
                                             // Ensure the notched outline also has the same borderRadius
                                             '& .MuiOutlinedInput-notchedOutline': {
                                                 borderRadius: '8px',
-                                                // If you still see a faint outline, you can also set border: 'none' here
                                                 border: 'none',
                                             },
 
@@ -446,13 +476,53 @@ function ModelList({ currentScreen }) {
                             <ModelCard
                                 key={model.model_id}
                                 model={model}
-                                onDelete={handleDelete}
+                                // Instead of calling handleDelete directly, we open the confirmation dialog
+                                onDelete={handleOpenDeleteDialog}
                                 onUpdate={fetchModels}
                             />
                         ))}
                     </Box>
                 )}
             </Box>
+
+            {/* --- Delete Confirmation Modal (MUI Dialog) --- */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={handleCloseDeleteDialog}
+                PaperProps={{
+                    style: {
+                        backgroundColor: '#1D1D1D',
+                        color: '#FFF',
+                        borderRadius: '8px',
+                    },
+                }}
+            >
+                <DialogTitle sx={{ fontFamily: 'Darker Grotesque, sans-serif' }}>
+                    Confirm Deletion
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ color: '#FFF' }}>
+                        Are you sure you want to delete this model? This cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseDeleteDialog} sx={{ color: '#FFF' }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleConfirmDelete}
+                        sx={{
+                            backgroundColor: '#333333',
+                            color: '#FFF',
+                            '&:hover': {
+                                backgroundColor: '#444444',
+                            },
+                        }}
+                    >
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </ThemeProvider>
     );
 }
