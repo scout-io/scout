@@ -471,6 +471,90 @@ function ModelList({ currentScreen }) {
                             </Box>
                         )}
 
+                        {models.length === 0 && searchTerm.trim() === '' && (
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    textAlign: 'center',
+                                    height: '60vh',
+                                    backgroundColor: '#1D1D1D',
+                                    borderRadius: '12px',
+                                    boxShadow: 3,
+                                    p: 4,
+                                    color: '#FFF',
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: '-50px',
+                                        left: '-100px',
+                                        width: '300px',
+                                        height: '300px',
+                                        background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+                                        filter: 'blur(50px)',
+                                    },
+                                    '&::after': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        bottom: '-70px',
+                                        right: '-120px',
+                                        width: '400px',
+                                        height: '400px',
+                                        background: 'linear-gradient(135deg, rgba(0,255,135,0.2) 0%, rgba(0,255,135,0) 70%)',
+                                        filter: 'blur(80px)',
+                                    },
+                                }}
+                            >
+                                <Typography
+                                    variant="h4"
+                                    component="h1"
+                                    sx={{
+                                        fontFamily: 'Darker Grotesque, sans-serif',
+                                        fontWeight: 600,
+                                        mb: 2,
+                                        color: '#FFFFFF',
+                                    }}
+                                >
+                                    Welcome to Scout
+                                </Typography>
+                                <Typography
+                                    variant="body1"
+                                    sx={{
+                                        fontFamily: 'Darker Grotesque, sans-serif',
+                                        fontSize: '16px',
+                                        lineHeight: 1.5,
+                                        maxWidth: '500px',
+                                        mb: 4,
+                                    }}
+                                >
+                                    Tap below to start your first self-optimizing AB test.
+                                </Typography>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => setShowForm(true)}
+                                    sx={{
+                                        backgroundColor: '#333333',
+                                        color: '#FFF',
+                                        fontFamily: 'Darker Grotesque, sans-serif',
+                                        fontWeight: 500,
+                                        fontSize: '14pt',
+                                        padding: '10px 20px',
+                                        borderRadius: '8px',
+                                        '&:hover': {
+                                            backgroundColor: '#444444',
+                                        },
+                                    }}
+                                >
+                                    Create Test ＋
+                                </Button>
+                            </Box>
+                        )}
+
+
                         {/* Render filtered models */}
                         {filteredModels.map((model) => (
                             <ModelCard

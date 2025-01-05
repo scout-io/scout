@@ -18,6 +18,30 @@ import { FaCopy } from 'react-icons/fa';
 import { ApiReferenceReact } from '@scalar/api-reference-react'
 import '@scalar/api-reference-react/style.css'
 
+function Footer() {
+  return (
+    <footer
+      style={{
+        backgroundColor: '#151515',
+        color: '#FFF',
+        padding: '1rem 2rem',
+        textAlign: 'center',
+        borderTop: '1px solid #333',
+        // position: 'sticky',
+        bottom: 0,
+        width: '100%',
+      }}
+    >
+      <div style={{ fontFamily: 'Darker Grotesque', fontSize: '14px', lineHeight: '1.5' }}>
+        <p style={{ margin: 0 }}>
+          &copy; {new Date().getFullYear()} Scout. All rights reserved.
+        </p>
+        <p style={{ margin: 0 }}>Version 1.0.0</p>
+      </div>
+    </footer>
+  );
+}
+
 // A simple Admin Panel embedded in this file
 function AdminPanel() {
   const [isProtected, setIsProtected] = useState(false);
@@ -369,6 +393,7 @@ function App() {
         </Box>
 
       </Box >
+      <Footer />
     </>
   );
 }
