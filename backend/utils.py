@@ -105,25 +105,7 @@ def estimate_exploitation_over_time(model) -> list:
     if not model.prediction_request_trail:
         return [{"n": 0, "exploitation": 0}]
 
-    bucket_size = 3
-    exploitation_data = []
-    total_predictions = len(model.prediction_request_trail)
-
-    for i in range(1, total_predictions + 1):
-        if i % bucket_size == 0 or i == total_predictions:
-            exploitation_count = 0
-
-            for j in range(i):
-                variant, _ = model.prediction_request_trail[j]
-                prediction_ratios = model.get_prediction_ratio()
-                max_variant = max(prediction_ratios, key=prediction_ratios.get)
-
-                if variant == max_variant:
-                    exploitation_count += 1
-
-            exploitation_ratio = exploitation_count / i * 100
-            exploitation_data.append(
-                {"n": i, "exploitation": round(exploitation_ratio, 2)}
-            )
-
-    return exploitation_data
+    response = []
+    for n_requests, ratio_percent in model.exploitation_history:
+        response.append({"n": n_requests, "exploitation": round(ratio_percent, 2)})
+    return response
