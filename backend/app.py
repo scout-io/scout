@@ -16,6 +16,7 @@ import uuid
 import json
 import os
 import joblib
+import zlib  # We'll use this for hashing strings
 from utils import (
     bucket_data,
     estimate_exploitation_exploration_ratio,
@@ -105,6 +106,64 @@ class ConfigModel(BaseModel):
     debug: bool
 
 
+#
+# ------------------- Hashing Trick Helper -------------------
+#
+
+N_HASH_BUCKETS = 1  # You can tune this
+
+
+def hash_features(context: Dict[str, Any]) -> np.ndarray:
+    """
+    Convert a dictionary of {feature_name -> value} into a single
+    numeric vector of length N_HASH_BUCKETS using a simple hashing trick.
+
+    Steps:
+    1) For each (feature_name, feature_value):
+       - Convert value to a numeric weight (bool->0/1, numeric->float, string->1).
+       - Build a token string, e.g. "feature_name=feature_value".
+       - Hash it to find the bucket index and sign.
+       - out[index] += sign * weight
+    2) Return out, a 1D numpy array of length N_HASH_BUCKETS.
+    """
+    out = np.zeros(N_HASH_BUCKETS, dtype=float)
+
+    for key, value in context.items():
+        # Determine numeric weight
+        if isinstance(value, bool):
+            weight = float(value)  # True=1.0, False=0.0
+        elif isinstance(value, (int, float)):
+            weight = float(value)
+        elif isinstance(value, str):
+            # For a string, just treat existence as weight=1.0
+            weight = 1.0
+        else:
+            raise ValueError(f"Unsupported feature type: {type(value).__name__}")
+
+        # Create token from "key=value"
+        token = f"{key}={value}"
+        h = zlib.adler32(token.encode("utf-8")) & 0xFFFFFFFF
+
+        # Bucket index
+        index = h % N_HASH_BUCKETS
+
+        # Sign can be derived from the next bits, or something more advanced.
+        # This helps distribute collisions. Example:
+        sign = 1 if ((h // N_HASH_BUCKETS) % 2) == 0 else -1
+
+        # Accumulate
+        out[index] += sign * weight
+
+    return out
+
+
+#
+# ------------------- wMAB & Model Persistence -------------------
+#
+
+MINIMUM_UPDATE_REQUESTS = 5
+
+
 class wMAB(MAB):
     def __init__(
         self,
@@ -119,14 +178,13 @@ class wMAB(MAB):
         self.name: str = name
 
         # Inherited from the user
-        # arms are the internal integer arms that MAB uses
         self.arms = arms  # e.g. [0,1,2,...]
         # Maps internal int -> user-supplied label (string or int)
         self.variant_labels = variant_labels
         # Inverse map: user-supplied label (string or int) -> internal int
         self.label_variants = label_variants
 
-        self.features: list[str] = []
+        self.features: list[str] = []  # Optionally track feature names
         self.created_at: datetime.datetime = datetime.datetime.utcnow()
         self.global_variant = None
         self.update_requests: int = 0
@@ -140,6 +198,17 @@ class wMAB(MAB):
 
         self.active: bool = True
         self.global_rolled_out: bool = False
+
+        # We'll store data for the first $MINIMUM_UPDATE_REQUESTS updates
+        self.initial_decisions = []
+        self.initial_rewards = []
+        self.initial_contexts = []
+        self.has_done_initial_fit = False
+
+        # ---------------- Exploitation tracking ----------------
+        self.exploitation_count = 0
+        # Store (n, ratio_percent) every time we log
+        self.exploitation_history: list[tuple[int, float]] = []
 
     def _incr_update_request(self) -> None:
         self.update_requests += 1
@@ -162,6 +231,10 @@ class wMAB(MAB):
         )
 
     def _update_feature_list(self, feature: str) -> None:
+        """
+        (Optional) Track encountered feature names for debugging.
+        Not strictly needed for hashing, but can be useful for logs/UI.
+        """
         if feature not in self.features:
             self.features.append(feature)
 
@@ -222,6 +295,11 @@ def delete_model_file(cb_model_id):
 models: dict[str, wMAB] = load_models()
 
 
+#
+# ------------------- Request Models -------------------
+#
+
+
 class CreateModelRequest(BaseModel):
     variants: Dict[int, Union[str, int]]
     name: str
@@ -241,8 +319,10 @@ class RolloutGlobalVariantRequest(BaseModel):
 
 
 #
-# ------------------- ADMIN ENDPOINTS FOR TOKEN & PROTECTION -------------------
+# ------------------- ADMIN ENDPOINTS -------------------
 #
+
+
 @app.get("/admin/get_protection")
 def get_protection_status():
     cfg = load_config()
@@ -287,7 +367,7 @@ def generate_token():
 
 
 #
-# ------------------- PROTECTED ENDPOINTS (USE maybe_verify_token) -------------
+# ------------------- PROTECTED ENDPOINTS -------------------
 #
 
 
@@ -307,7 +387,7 @@ async def create_model(
         variant_labels=variant_labels,
         label_variants=label_variants,
         learning_policy=LearningPolicy.UCB1(alpha=1.25),
-        neighborhood_policy=NeighborhoodPolicy.Radius(radius=5),
+        neighborhood_policy=NeighborhoodPolicy.TreeBandit(),
     )
     save_model(cb_model_id, models[cb_model_id])
     return {"message": "Model created successfully", "model_id": cb_model_id}
@@ -385,22 +465,61 @@ async def update_model(
                     detail=f"Invalid variant integer: {decision}",
                 )
 
-        features = {k: v for k, v in update.items() if k.startswith("feature")}
-        feature_array = np.array([list(features.values())])
+        # Gather all keys that are not 'decision' or 'reward' as context
+        context_features = {
+            k: v for k, v in update.items() if k not in ("decision", "reward")
+        }
 
-        # Update the model's known features if first time
-        if model.update_requests == 0:
-            for feature in features:
-                model._update_feature_list(feature)
+        # (Optional) record these feature names in the model's .features for reference
+        for fname in context_features.keys():
+            model._update_feature_list(fname)
 
-        model.partial_fit(
-            decisions=[decision], rewards=[reward], contexts=feature_array
-        )
-        model._incr_update_request()
-        model._incr_latest_update_request()
-        model._update_update_request_trail(variant=decision, reward=reward)
+        # Use the hashing trick to get a numeric vector
+        hashed_vector = hash_features(context_features)  # shape=(N_HASH_BUCKETS,)
+        hashed_vector = hashed_vector.reshape(1, -1)  # shape=(1, N_HASH_BUCKETS)
 
-    if model.update_requests % 100:
+        # Accumulate first MINIMUM_UPDATE_REQUESTS updates, do one big fit, then partial_fit
+        if model.update_requests < MINIMUM_UPDATE_REQUESTS:
+            model.initial_decisions.append(decision)
+            model.initial_rewards.append(reward)
+            model.initial_contexts.append(hashed_vector[0])  # single row
+            model._incr_update_request()
+            model._incr_latest_update_request()
+            model._update_update_request_trail(variant=decision, reward=reward)
+
+            if model.update_requests == MINIMUM_UPDATE_REQUESTS:
+                all_contexts = np.array(model.initial_contexts)
+                all_decisions = np.array(model.initial_decisions)
+                all_rewards = np.array(model.initial_rewards)
+
+                model.fit(
+                    decisions=all_decisions, rewards=all_rewards, contexts=all_contexts
+                )
+                model.has_done_initial_fit = True
+
+        else:
+            # After MINIMUM_UPDATE_REQUESTS, we do partial_fit
+            if not model.has_done_initial_fit:
+                # Safety check: do the full fit if we never did
+                all_contexts = np.array(model.initial_contexts)
+                all_decisions = np.array(model.initial_decisions)
+                all_rewards = np.array(model.initial_rewards)
+
+                model.fit(
+                    decisions=all_decisions, rewards=all_rewards, contexts=all_contexts
+                )
+                model.has_done_initial_fit = True
+
+            # Partial fit
+            model.partial_fit(
+                decisions=[decision], rewards=[reward], contexts=hashed_vector
+            )
+            model._incr_update_request()
+            model._incr_latest_update_request()
+            model._update_update_request_trail(variant=decision, reward=reward)
+
+    # Periodically save
+    if model.update_requests % 100 == 0:
         save_model(cb_model_id, model)
 
     return {"message": "Model updated successfully"}
@@ -457,27 +576,50 @@ async def fetch_recommended_variant(
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
 
+    # Check for global rollout first
     if model.global_rolled_out and model.get_global_variant() is not None:
         internal_variant = model.get_global_variant()
         recommended_label = model.variant_labels.get(internal_variant, internal_variant)
         return {"recommended_variant": recommended_label}
 
-    context = request.context
-    features = {k: v for k, v in context.items() if k.startswith("feature")}
-    feature_array = np.array([list(features.values())])
+    # Convert context to hashed feature vector (or your normal transform)
+    hashed_vector = hash_features(request.context).reshape(1, -1)
 
-    if not model.update_requests:
+    # If fewer than MINIMUM_UPDATE_REQUESTS updates, random arm (no fit yet)
+    if model.update_requests < MINIMUM_UPDATE_REQUESTS:
         internal_variant = random.choice(model.arms)
     else:
-        internal_variant = model.predict(feature_array)
+        # If partial fits or the initial big fit has been done:
+        internal_variant = model.predict(hashed_vector)
 
-    model._incr_prediction_request()
-    model._incr_latest_prediction_request()
-    model._update_prediction_request_trail(internal_variant)
+    # ---------------- Exploitation check: only if initial fit is done ----------------
+    if model.has_done_initial_fit:
+        expectations = model.predict_expectations(hashed_vector)  # shape: (1, #arms)
+        best_arm = max(expectations, key=expectations.get)  # purely greedy choice
+
+        if internal_variant == best_arm:
+            model.exploitation_count += 1
+
+        # Now increment the standard prediction_requests
+        model._incr_prediction_request()
+        model._incr_latest_prediction_request()
+        model._update_prediction_request_trail(internal_variant)
+
+        # Every 10 predictions, record exploitation ratio
+        if model.prediction_requests % 10 == 0:
+            ratio = 100.0 * model.exploitation_count / model.prediction_requests
+            model.exploitation_history.append((model.prediction_requests, ratio))
+    else:
+        # If not yet fit, skip exploitation logic
+        model._incr_prediction_request()
+        model._incr_latest_prediction_request()
+        model._update_prediction_request_trail(internal_variant)
+    # ----------------------------------------------------------------------------------
 
     recommended_label = model.variant_labels.get(internal_variant, internal_variant)
 
-    if model.prediction_requests % 100:
+    # Periodically save
+    if model.prediction_requests % 100 == 0:
         save_model(cb_model_id, model)
 
     return {"recommended_variant": recommended_label}
