@@ -157,6 +157,7 @@ function AdminPanel() {
                 backgroundColor: '#333333',
                 color: '#FFF',
                 fontWeight: 500,
+                fontFamily: 'Darker Grotesque',
                 fontSize: '10pt',
                 padding: '8px 16px',
                 borderRadius: '8px',

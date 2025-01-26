@@ -492,7 +492,7 @@ function ModelCard({ model, onDelete, onUpdate }) {
                                             style={{
                                                 fontFamily: 'Darker Grotesque',
                                                 fontWeight: 200,
-                                                fontSize: '0.7rem'
+                                                fontSize: '0.9rem'
                                             }}
                                         >
                                             Prediction Requests (RPM)
@@ -518,6 +518,7 @@ function ModelCard({ model, onDelete, onUpdate }) {
                                             <YAxis fontSize="0.7rem" />
                                             <CartesianGrid stroke="#cccc" strokeDasharray="1 5" />
                                             <Tooltip
+                                                wrapperStyle={{ fontSize: "0.7rem" }}
                                                 labelFormatter={(label) =>
                                                     new Date(label).toLocaleString()
                                                 }
@@ -562,7 +563,7 @@ function ModelCard({ model, onDelete, onUpdate }) {
                                             style={{
                                                 fontFamily: 'Darker Grotesque',
                                                 fontWeight: 200,
-                                                fontSize: '0.7rem'
+                                                fontSize: '0.9rem'
                                             }}
                                         >
                                             Exploitation Rate
@@ -586,7 +587,7 @@ function ModelCard({ model, onDelete, onUpdate }) {
                                                 fontSize="0.7rem"
                                             />
                                             <CartesianGrid stroke="#cccc" strokeDasharray="1 5" />
-                                            <Tooltip />
+                                            <Tooltip wrapperStyle={{ fontSize: "0.7rem" }} />
                                             <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
                                             <Line
                                                 type="monotone"
