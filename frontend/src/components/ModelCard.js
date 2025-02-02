@@ -14,6 +14,8 @@ import {
 import {
     LineChart,
     Line,
+    BarChart,
+    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -23,9 +25,43 @@ import {
 } from 'recharts';
 import axios from 'axios';
 
+function FeaturePredictionChart({ featureName, bucketData, variantLabels, colors }) {
+    // Transform bucketData into a format where each object has keys for each variant label.
+    const transformedData = bucketData.map(bucket => {
+        const obj = { bucket: bucket.bucket };
+        variantLabels.forEach(label => {
+            obj[label] = bucket.ratios[label] || 0;
+        });
+        return obj;
+    });
+
+    return (
+        <ResponsiveContainer width="100%" height={250}>
+            <BarChart
+                data={transformedData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+                <CartesianGrid strokeDasharray="3 3" stroke="#cccc" />
+                <XAxis dataKey="bucket" tick={{ fill: "#C0C1C2", fontSize: '0.7rem' }} />
+                <YAxis
+                    tick={{ fill: "#C0C1C2", fontSize: '0.7rem' }}
+                    domain={[0, 100]}
+                    tickFormatter={(tick) => `${tick}%`}
+                />
+                <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
+                {variantLabels.map((label, index) => (
+                    <Bar key={label} dataKey={label} fill={colors[index % colors.length]} />
+                ))}
+            </BarChart>
+        </ResponsiveContainer>
+    );
+}
+
 function ModelCard({ model, onDelete, onUpdate }) {
     const [showIcon, setShowIcon] = useState(false);
     const [open, setOpen] = useState(false);
+    // Track which feature’s breakdown is open. (Keyed by feature name.)
+    const [openFeature, setOpenFeature] = useState({});
 
     // If global is rolled out, the "selected variant" shows that label, else "Set global variant"
     const [selectedVariant, setSelectedVariant] = useState(
@@ -46,9 +82,7 @@ function ModelCard({ model, onDelete, onUpdate }) {
         const token = localStorage.getItem('authToken');
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-        // The user can pick "Remove override" or a variant label. We'll send that to the server.
         if (variantLabel === 'Remove override') {
-            // Call the clear_global_variant endpoint
             try {
                 await axios.post(
                     `/api/clear_global_variant/${model.model_id}`,
@@ -64,8 +98,6 @@ function ModelCard({ model, onDelete, onUpdate }) {
         } else {
             setSelectedVariant(variantLabel);
             try {
-                // Post to rollout_global_variant with { variant: variantLabel }
-                // The server will interpret it as a string if it doesn't parse as int
                 await axios.post(
                     `/api/rollout_global_variant/${model.model_id}`,
                     { variant: variantLabel },
@@ -100,19 +132,19 @@ function ModelCard({ model, onDelete, onUpdate }) {
 
     const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300'];
 
-    // If the model has a global override, show a different dropdown title
     const dropdownTitle = model.global_rolled_out
         ? `Override: ${model.global_variant}`
         : 'Override';
 
-    // Convert the dictionary of variants (e.g. {0:'red',1:'blue'}) into an array of [internalKey, label] pairs
     const variantEntries = Object.entries(model.variants || {});
-    // e.g. [["0", "red"], ["1","blue"]]
-
-    // Build a string to display in the card: "0:red, 1:blue"
+    const variantLabels = variantEntries.map(([k, v]) => v);
     const variantLabelsString = variantEntries
         .map(([k, v]) => `${v}`)
         .join(' | ');
+
+    const toggleFeature = (feature) => {
+        setOpenFeature(prev => ({ ...prev, [feature]: !prev[feature] }));
+    };
 
     return (
         <Card
@@ -128,7 +160,6 @@ function ModelCard({ model, onDelete, onUpdate }) {
                         alignItems: 'center'
                     }}
                 >
-                    {/* Left side content */}
                     <div
                         onMouseEnter={() => setShowIcon(true)}
                         onMouseLeave={() => setShowIcon(false)}
@@ -186,7 +217,6 @@ function ModelCard({ model, onDelete, onUpdate }) {
                             </Card.Text>
                         ) : null}
                     </div>
-                    {/* Right side content */}
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                         <DropdownButton
                             id={`dropdown-variant-${model.model_id}`}
@@ -200,7 +230,7 @@ function ModelCard({ model, onDelete, onUpdate }) {
                         >
                             {variantEntries.map(([internalKey, label]) => (
                                 <Dropdown.Item
-                                    eventKey={label} // We pass the user-friendly label as the eventKey
+                                    eventKey={label}
                                     key={internalKey}
                                     style={{ fontSize: '0.7rem' }}
                                 >
@@ -453,20 +483,46 @@ function ModelCard({ model, onDelete, onUpdate }) {
                             </span>
                         </Card.Text>
 
-                        <ul>
-                            {model.features.map((feature, index) => (
-                                <li
-                                    key={index}
+
+                        {model.features.map((feature, index) => (
+                            <div key={index} style={{ marginBottom: '10px' }}>
+                                <div
+                                    onClick={() => toggleFeature(feature)}
                                     style={{
+                                        cursor: 'pointer',
                                         fontFamily: 'monospace',
                                         fontSize: '0.8rem',
-                                        color: '#787878'
+                                        color: '#787878',
+                                        display: 'flex',
+                                        alignItems: 'center'
                                     }}
                                 >
-                                    {feature}
-                                </li>
-                            ))}
-                        </ul>
+                                    <span>{feature}</span>
+                                    {openFeature[feature] ? (
+                                        <FaChevronUp style={{ marginLeft: '5px' }} />
+                                    ) : (
+                                        <FaChevronDown style={{ marginLeft: '5px' }} />
+                                    )}
+                                </div>
+                                <Collapse in={openFeature[feature]}>
+                                    <div style={{ padding: '10px' }}>
+                                        {model.feature_prediction_data &&
+                                            model.feature_prediction_data[feature] ? (
+                                            <FeaturePredictionChart
+                                                featureName={feature}
+                                                bucketData={model.feature_prediction_data[feature].buckets}
+                                                variantLabels={variantLabels}
+                                                colors={colors}
+                                            />
+                                        ) : (
+                                            <div style={{ color: '#787878', fontSize: '0.8rem' }}>
+                                                No prediction data for this feature.
+                                            </div>
+                                        )}
+                                    </div>
+                                </Collapse>
+                            </div>
+                        ))}
 
                         <Card.Text>
                             <strong
@@ -485,7 +541,6 @@ function ModelCard({ model, onDelete, onUpdate }) {
 
                         <Row>
                             <Col md={6} style={{ position: 'relative' }}>
-                                {/* Line chart for request trail */}
                                 <div>
                                     <div style={{ textAlign: 'center', marginBottom: '10px' }}>
                                         <strong
@@ -556,7 +611,6 @@ function ModelCard({ model, onDelete, onUpdate }) {
                                 )}
                             </Col>
                             <Col md={6} style={{ position: 'relative' }}>
-                                {/* Line chart for exploitation status */}
                                 <div>
                                     <div style={{ textAlign: 'center', marginBottom: '10px' }}>
                                         <strong

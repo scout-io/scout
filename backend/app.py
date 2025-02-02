@@ -33,7 +33,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 
 # Pydantic
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # mabwiser
 from mabwiser.mab import MAB, LearningPolicy, NeighborhoodPolicy
@@ -53,7 +53,6 @@ from utils import (
 CONFIG_FILE: str = "config.json"
 MODEL_DIR: str = "models"
 MINIMUM_UPDATE_REQUESTS: int = 10
-
 
 ###############################################################################
 #                                CONFIG MANAGEMENT
@@ -103,7 +102,7 @@ def encode_value(feature_name: str, value: Any, model: "WrappedMAB") -> float:
     """
     Encode a single context value as a numeric value.
 
-    - Booleans are converted to 1.0 (True) or 0.0 (False).
+    - Booleans are converted to 1 (True) or 0 (False).
     - Numeric values (int/float) are left unchanged.
     - Strings (categorical features) are mapped to an ordinal integer code.
       New values are assigned the next available integer.
@@ -233,11 +232,14 @@ class FetchActionRequest(BaseModel):
     Request body for fetching a recommended variant from a model.
 
     cb_model_id: The identifier of the model to query.
-    context: A dict containing contextual data (e.g., 'featureX': value).
+    context: Optional contextual data (e.g., 'featureX': value). If not provided,
+             an empty context is assumed.
     """
 
     cb_model_id: str
-    context: Dict[str, Union[str, float, int, bool]]
+    context: Optional[Dict[str, Union[str, float, int, bool]]] = Field(
+        default_factory=dict
+    )
 
 
 class RolloutGlobalVariantRequest(BaseModel):
@@ -312,6 +314,14 @@ class WrappedMAB(MAB):
         # ---------------------------
         # Stores mappings per feature for categorical (string) values.
         self.context_encoders: Dict[str, Dict[Any, float]] = {}
+
+        # ---------------------------
+        # NEW: Track prediction data by context
+        # ---------------------------
+        # Each record is a tuple: (context dict, chosen internal variant, timestamp)
+        self.feature_prediction_trail: List[
+            Tuple[Dict[str, Any], int, datetime.datetime]
+        ] = []
 
     def _incr_update_request(self) -> None:
         """Increment the count of update requests."""
@@ -513,7 +523,7 @@ async def create_model(
         arms=arms,
         variant_labels=variant_labels,
         label_variants=label_variants,
-        learning_policy=LearningPolicy.UCB1(alpha=1.25),
+        learning_policy=LearningPolicy.EpsilonGreedy(),
         neighborhood_policy=NeighborhoodPolicy.TreeBandit(),
     )
 
@@ -571,6 +581,7 @@ async def get_models_info() -> Any:
                 "exploit_explore_ratio": estimate_exploitation_exploration_ratio(model),
                 "reward_summary": estimate_relative_reward_increase(model),
                 "exploitation_status": estimate_exploitation_over_time(model),
+                "feature_prediction_data": compute_feature_prediction_data(model),
             }
         )
     return jsonable_encoder(response)
@@ -611,7 +622,7 @@ async def update_model(
                 )
 
         # -------------------------------
-        # NEW: Encode context features using our helper.
+        # Encode context features using our helper.
         # -------------------------------
         # Extract only keys starting with "feature"
         context_features = {k: v for k, v in update.items() if k.startswith("feature")}
@@ -619,11 +630,6 @@ async def update_model(
         # Wrap into 2D array when calling fit/partial_fit.
         context_array = np.array([encoded_context])
         # --------------------------------
-
-        # (Optional:) You may remove the old feature tracking code:
-        # if model.update_requests == 0:
-        #     for feature_name in context_features:
-        #         model._update_feature_list(feature_name)
 
         # =========================================
         # Accumulate first 100 updates, do batch fit
@@ -750,15 +756,15 @@ async def fetch_recommended_variant(
         return {"recommended_variant": recommended_label}
 
     # -------------------------------
-    # NEW: Encode context for prediction.
-    context_features = {
-        k: v for k, v in request.context.items() if k.startswith("feature")
-    }
-    if model.features:
+    # Encode context for prediction.
+    # If no context is provided, use an empty 2D array.
+    if request.context:
+        context_features = {
+            k: v for k, v in request.context.items() if k.startswith("feature")
+        }
         encoded_context = encode_context(model, context_features)
         feature_array = np.array([encoded_context])
     else:
-        # No context features available; pass an empty 2D array.
         feature_array = np.empty((1, 0))
     # -------------------------------
 
@@ -788,6 +794,12 @@ async def fetch_recommended_variant(
         model._incr_latest_prediction_request()
         model._update_prediction_request_trail(internal_variant)
 
+    # NEW: If context is provided, record feature-specific prediction data.
+    if request.context and len(request.context) > 0:
+        model.feature_prediction_trail.append(
+            (request.context, internal_variant, datetime.datetime.utcnow())
+        )
+
     recommended_label = model.variant_labels.get(internal_variant, internal_variant)
 
     # Persist to disk every 100 predictions
@@ -795,6 +807,101 @@ async def fetch_recommended_variant(
         save_model(cb_model_id, model)
 
     return {"recommended_variant": recommended_label}
+
+
+###############################################################################
+#                            HELPER: Feature Prediction Data
+###############################################################################
+
+
+def compute_feature_prediction_data(model: WrappedMAB) -> Dict[str, Any]:
+    """
+    Process model.feature_prediction_trail to compute, for each feature,
+    a bucketed breakdown of prediction ratios per variant.
+    """
+    result = {}
+    for feature in model.features:
+        entries = []
+        for record in model.feature_prediction_trail:
+            context, variant, timestamp = record
+            if feature in context:
+                entries.append((context[feature], variant))
+        if not entries:
+            continue
+        # Determine feature type.
+        sample = entries[0][0]
+        if type(sample) is bool:
+            feature_type = "bool"
+        elif isinstance(sample, (int, float)):
+            if all(
+                isinstance(val, (int, float)) and type(val) is not bool
+                for val, _ in entries
+            ):
+                feature_type = "numeric"
+            else:
+                feature_type = "categorical"
+        else:
+            feature_type = "categorical"
+
+        buckets = {}
+        if feature_type == "numeric":
+            all_values = [val for val, _ in entries]
+            unique_values = sorted(set(all_values))
+            if len(unique_values) <= 5:
+                # Treat each value as its own bucket.
+                for val, variant in entries:
+                    bucket_label = str(val)
+                    buckets.setdefault(bucket_label, []).append(variant)
+            else:
+                min_val = min(all_values)
+                max_val = max(all_values)
+                if min_val == max_val:
+                    for val, variant in entries:
+                        bucket_label = str(val)
+                        buckets.setdefault(bucket_label, []).append(variant)
+                else:
+                    bin_count = 5
+                    bin_width = (max_val - min_val) / bin_count
+                    bins_edges = [min_val + i * bin_width for i in range(bin_count + 1)]
+                    for val, variant in entries:
+                        bin_index = int((val - min_val) / bin_width)
+                        if bin_index == bin_count:
+                            bin_index = bin_count - 1
+                        low = bins_edges[bin_index]
+                        high = bins_edges[bin_index + 1]
+                        bucket_label = f"{low:.2f}-{high:.2f}"
+                        buckets.setdefault(bucket_label, []).append(variant)
+        else:
+            # For categorical or boolean features, each distinct value is a bucket.
+            for val, variant in entries:
+                bucket_label = str(val)
+                buckets.setdefault(bucket_label, []).append(variant)
+
+        bucket_list = []
+        for bucket_label, variants in buckets.items():
+            total = len(variants)
+            counts = {}
+            for variant in variants:
+                variant_label = model.variant_labels.get(variant, variant)
+                counts[variant_label] = counts.get(variant_label, 0) + 1
+            ratios = {k: (v / total) * 100 for k, v in counts.items()}
+            bucket_list.append(
+                {
+                    "bucket": bucket_label,
+                    "total": total,
+                    "predictions": counts,
+                    "ratios": ratios,
+                }
+            )
+        if feature_type == "numeric":
+            try:
+                bucket_list.sort(key=lambda x: float(x["bucket"].split("-")[0]))
+            except Exception:
+                bucket_list.sort(key=lambda x: x["bucket"])
+        else:
+            bucket_list.sort(key=lambda x: x["bucket"])
+        result[feature] = {"type": feature_type, "buckets": bucket_list}
+    return result
 
 
 ###############################################################################

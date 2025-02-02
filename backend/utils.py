@@ -29,27 +29,12 @@ def bucket_data(data):
 
 def estimate_exploitation_exploration_ratio(model) -> dict:
     if not model.prediction_request_trail:
-        return {"exploration": 0.0, "exploitation": 0.0}
+        return {"exploitation": 0.0}
 
-    total_predictions = len(model.prediction_request_trail)
-    exploration_count = 0
-    exploitation_count = 0
-
-    for variant, _ in model.prediction_request_trail:
-        # Assuming exploitation is when we pick the most frequent variant
-        prediction_ratios = model.get_prediction_ratio()
-        max_variant = max(prediction_ratios, key=prediction_ratios.get)
-        if variant == max_variant:
-            exploitation_count += 1
-        else:
-            exploration_count += 1
-
-    exploration_ratio = exploration_count / total_predictions
-    exploitation_ratio = exploitation_count / total_predictions
+    n_requests, exploitation_ratio = model.exploitation_history[-1]
 
     return {
-        "exploration": round(exploration_ratio * 100, 2),
-        "exploitation": round(exploitation_ratio * 100, 2),
+        "exploitation": round(exploitation_ratio, 2),
     }
 
 
