@@ -107,7 +107,7 @@ def plot_results(df):
     """
     Creates several plots to visualize how the bandit is behaving.
     Plots include:
-      1) Proportion of each recommended variant grouped by feature_example.
+      1) Proportion of each recommended variant grouped b§ feature_example.
       2) How the proportion of each variant changes over iterations.
       3) (Optional) Average reward over time or other relevant metrics.
     """
@@ -194,7 +194,7 @@ def plot_results(df):
 def main():
     # Configuration
     BASE_URL = "http://localhost:3000"
-    CB_MODEL_ID = "ec77cefc-1200-4130-8ab2-513be966bf17"  # The model ID you created
+    CB_MODEL_ID = "2b81cfde-541b-46ba-b736-89c13ef852b4"  # The model ID you created
     N_ITERATIONS = 500  # How many times to run the simulation loop
 
     # Run the simulation
