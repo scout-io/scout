@@ -38,54 +38,6 @@ def estimate_exploitation_exploration_ratio(model) -> dict:
     }
 
 
-def estimate_relative_reward_increase(model) -> dict:
-    # Calculate actual total reward from the model's decisions
-    actual_total_reward = sum(
-        [reward for variant, reward in model.update_request_trail]
-    )
-
-    variant_sum = defaultdict(float)
-    variant_count = defaultdict(int)
-
-    for variant, reward in model.update_request_trail:
-        variant_sum[variant] += reward
-        variant_count[variant] += 1
-
-    # Calculate average reward per variant
-    variant_avg = {
-        variant: variant_sum[variant] / variant_count[variant]
-        for variant in variant_sum
-    }
-
-    n_variants = len(model.arms)
-    if n_variants == 0:
-        return {"relative_increase": 0}
-
-    n_updates = len(model.update_request_trail)
-
-    flattened_updates_per_variant = n_updates / n_variants
-
-    random_total_reward = sum(
-        [
-            flattened_updates_per_variant * avg_reward
-            for avg_reward in variant_avg.values()
-        ]
-    )
-
-    if random_total_reward == 0:
-        return {"relative_increase": 0}
-
-    relative_increase = (
-        actual_total_reward - random_total_reward
-    ) / random_total_reward
-
-    return {
-        "total_reward": actual_total_reward,
-        "random_total_rewards": random_total_reward,
-        "relative_increase": round(relative_increase * 100, 2),
-    }
-
-
 def estimate_exploitation_over_time(model) -> list:
     if not model.prediction_request_trail:
         return [{"n": 0, "exploitation": 0}]

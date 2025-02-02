@@ -42,7 +42,6 @@ from mabwiser.mab import MAB, LearningPolicy, NeighborhoodPolicy
 from utils import (
     bucket_data,
     estimate_exploitation_exploration_ratio,
-    estimate_relative_reward_increase,
     estimate_exploitation_over_time,
 )
 
@@ -554,6 +553,7 @@ async def get_models_info() -> Any:
     """
     Public endpoint (no token required).
     Lists all available models and their metadata.
+    Only returns summary information (cheap to compute).
     """
     response = []
     for model_id, model in models.items():
@@ -577,14 +577,31 @@ async def get_models_info() -> Any:
                 "URL": f"http://localhost/api/update_model/{model_id}",
                 "features": model.features,
                 "active": model.active,
-                "request_trail": bucket_data(model.prediction_request_trail),
-                "exploit_explore_ratio": estimate_exploitation_exploration_ratio(model),
-                "reward_summary": estimate_relative_reward_increase(model),
-                "exploitation_status": estimate_exploitation_over_time(model),
-                "feature_prediction_data": compute_feature_prediction_data(model),
             }
         )
     return jsonable_encoder(response)
+
+
+@app.get("/api/model_details/{cb_model_id}")
+async def get_model_details(cb_model_id: str) -> Any:
+    """
+    Returns expensive-to-compute details for the specified model.
+    This includes:
+      - Bucketed request trail data
+      - Exploitation/exploration ratios
+      - Feature-specific prediction breakdowns
+    This endpoint is intended to be called only when a user expands the detailed view.
+    """
+    model = models.get(cb_model_id)
+    if not model:
+        raise HTTPException(status_code=404, detail="Model not found")
+    details = {
+        "request_trail": bucket_data(model.prediction_request_trail),
+        "exploit_explore_ratio": estimate_exploitation_exploration_ratio(model),
+        "exploitation_status": estimate_exploitation_over_time(model),
+        "feature_prediction_data": compute_feature_prediction_data(model),
+    }
+    return jsonable_encoder(details)
 
 
 @app.post("/api/update_model/{cb_model_id}")

@@ -112,39 +112,52 @@ function ModelCard({ model, onDelete, onUpdate }) {
         }
     };
 
-    const formatRequestTrailData = () => {
-        return model.request_trail.map(entry => ({
+    // Helper functions to reformat additional (expensive) data for charts.
+    const formatRequestTrailData = (data) => {
+        return data.map(entry => ({
             time: new Date(entry.time_bucket).getTime(),
             ...entry.frequency
         }));
     };
 
-    const requestData = model.prediction_requests === 0 ? [] : formatRequestTrailData();
-
-    const formatExploitationData = () => {
-        return model.exploitation_status.map(entry => ({
+    const formatExploitationData = (data) => {
+        return data.map(entry => ({
             n: entry.n,
-            exploitation: entry.exploitation
+            exploitation: entry.exploitation,
         }));
     };
 
-    const exploitationData = model.prediction_requests === 0 ? [] : formatExploitationData();
-
     const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300'];
-
+    const variantEntries = Object.entries(model.variants || {});
+    const variantLabels = variantEntries.map(([k, v]) => v);
     const dropdownTitle = model.global_rolled_out
         ? `Override: ${model.global_variant}`
         : 'Override';
 
-    const variantEntries = Object.entries(model.variants || {});
-    const variantLabels = variantEntries.map(([k, v]) => v);
-    const variantLabelsString = variantEntries
-        .map(([k, v]) => `${v}`)
-        .join(' | ');
-
     const toggleFeature = (feature) => {
         setOpenFeature(prev => ({ ...prev, [feature]: !prev[feature] }));
     };
+
+    // State to hold the additional (expensive) details loaded on demand.
+    const [additionalData, setAdditionalData] = useState(null);
+    const [loadingAdditionalData, setLoadingAdditionalData] = useState(false);
+
+    // When the collapsible section opens, fetch the extra (expensive) data.
+    useEffect(() => {
+        if (open && !additionalData) {
+            setLoadingAdditionalData(true);
+            axios.get(`/api/model_details/${model.model_id}`)
+                .then((res) => {
+                    setAdditionalData(res.data);
+                })
+                .catch((error) => {
+                    console.error("Error fetching additional model data:", error);
+                })
+                .finally(() => {
+                    setLoadingAdditionalData(false);
+                });
+        }
+    }, [open, additionalData, model.model_id]);
 
     return (
         <Card
@@ -427,6 +440,7 @@ function ModelCard({ model, onDelete, onUpdate }) {
                 </Button>
                 <Collapse in={open}>
                     <div id="example-collapse-text" style={{ paddingTop: '10px' }}>
+                        {/* Render summary (cheap) model data */}
                         <Card.Text>
                             <strong
                                 style={{
@@ -469,208 +483,207 @@ function ModelCard({ model, onDelete, onUpdate }) {
                                     .join('   | ')}
                             </span>
                             <br />
-                            <strong
-                                style={{
-                                    fontFamily: 'Darker Grotesque',
-                                    fontWeight: 700,
-                                    fontSize: '0.8rem'
-                                }}
-                            >
-                                Optimization Status:
-                            </strong>{' '}
-                            <span style={{ fontSize: '0.8rem' }}>
-                                {`${model.exploit_explore_ratio.exploitation}%`}
-                            </span>
                         </Card.Text>
 
+                        {/* Render expensive details once they are loaded */}
+                        {loadingAdditionalData && (
+                            <div style={{ fontSize: '0.8rem', color: '#787878' }}>
+                                Loading additional data...
+                            </div>
+                        )}
+                        {additionalData && !loadingAdditionalData && (
+                            <>
+                                <Card.Text>
+                                    <strong
+                                        style={{
+                                            fontFamily: 'Darker Grotesque',
+                                            fontWeight: 700,
+                                            fontSize: '0.8rem'
+                                        }}
+                                    >
+                                        Optimization Status:
+                                    </strong>{' '}
+                                    <span style={{ fontSize: '0.8rem' }}>
+                                        {`${additionalData.exploit_explore_ratio.exploitation}%`}
+                                    </span>
+                                </Card.Text>
 
-                        {model.features.map((feature, index) => (
-                            <div key={index} style={{ marginBottom: '10px' }}>
-                                <div
-                                    onClick={() => toggleFeature(feature)}
-                                    style={{
-                                        cursor: 'pointer',
-                                        fontFamily: 'monospace',
-                                        fontSize: '0.8rem',
-                                        color: '#787878',
-                                        display: 'flex',
-                                        alignItems: 'center'
-                                    }}
-                                >
-                                    <span>{feature}</span>
-                                    {openFeature[feature] ? (
-                                        <FaChevronUp style={{ marginLeft: '5px' }} />
-                                    ) : (
-                                        <FaChevronDown style={{ marginLeft: '5px' }} />
-                                    )}
-                                </div>
-                                <Collapse in={openFeature[feature]}>
-                                    <div style={{ padding: '10px' }}>
-                                        {model.feature_prediction_data &&
-                                            model.feature_prediction_data[feature] ? (
-                                            <FeaturePredictionChart
-                                                featureName={feature}
-                                                bucketData={model.feature_prediction_data[feature].buckets}
-                                                variantLabels={variantLabels}
-                                                colors={colors}
-                                            />
-                                        ) : (
-                                            <div style={{ color: '#787878', fontSize: '0.8rem' }}>
-                                                No prediction data for this feature.
+                                {model.features.map((feature, index) => (
+                                    <div key={index} style={{ marginBottom: '10px' }}>
+                                        <div
+                                            onClick={() => toggleFeature(feature)}
+                                            style={{
+                                                cursor: 'pointer',
+                                                fontFamily: 'monospace',
+                                                fontSize: '0.8rem',
+                                                color: '#787878',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                        >
+                                            <span>{feature}</span>
+                                            {openFeature[feature] ? (
+                                                <FaChevronUp style={{ marginLeft: '5px' }} />
+                                            ) : (
+                                                <FaChevronDown style={{ marginLeft: '5px' }} />
+                                            )}
+                                        </div>
+                                        <Collapse in={openFeature[feature]}>
+                                            <div style={{ padding: '10px' }}>
+                                                {additionalData.feature_prediction_data &&
+                                                    additionalData.feature_prediction_data[feature] ? (
+                                                    <FeaturePredictionChart
+                                                        featureName={feature}
+                                                        bucketData={
+                                                            additionalData.feature_prediction_data[feature].buckets
+                                                        }
+                                                        variantLabels={variantLabels}
+                                                        colors={colors}
+                                                    />
+                                                ) : (
+                                                    <div style={{ color: '#787878', fontSize: '0.8rem' }}>
+                                                        No prediction data for this feature.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </Collapse>
+                                    </div>
+                                ))}
+
+                                <Row>
+                                    <Col md={6} style={{ position: 'relative' }}>
+                                        <div>
+                                            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                                                <strong
+                                                    style={{
+                                                        fontFamily: 'Darker Grotesque',
+                                                        fontWeight: 200,
+                                                        fontSize: '0.9rem'
+                                                    }}
+                                                >
+                                                    Prediction Requests (RPM)
+                                                </strong>
+                                            </div>
+                                            <ResponsiveContainer width="100%" height={200}>
+                                                <LineChart
+                                                    data={formatRequestTrailData(additionalData.request_trail)}
+                                                    margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                                                >
+                                                    <XAxis
+                                                        dataKey="time"
+                                                        domain={['dataMin', 'dataMax']}
+                                                        type="number"
+                                                        fontSize="0.7rem"
+                                                        tickFormatter={(time) =>
+                                                            new Date(time).toLocaleTimeString([], {
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })
+                                                        }
+                                                    />
+                                                    <YAxis fontSize="0.7rem" />
+                                                    <CartesianGrid stroke="#cccc" strokeDasharray="1 5" />
+                                                    <Tooltip
+                                                        wrapperStyle={{ fontSize: "0.7rem" }}
+                                                        labelFormatter={(label) =>
+                                                            new Date(label).toLocaleString()
+                                                        }
+                                                    />
+                                                    <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
+                                                    {variantEntries.map(([internalKey, label], index) => (
+                                                        <Line
+                                                            key={internalKey}
+                                                            type="monotone"
+                                                            dataKey={label}
+                                                            stroke={colors[index % colors.length]}
+                                                        />
+                                                    ))}
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+
+                                        {model.prediction_requests === 0 && (
+                                            <div
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: '40%',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    color: '#787878',
+                                                    fontSize: '0.7rem'
+                                                }}
+                                            >
+                                                No Prediction Requests
                                             </div>
                                         )}
-                                    </div>
-                                </Collapse>
-                            </div>
-                        ))}
-
-                        <Card.Text>
-                            <strong
-                                style={{
-                                    fontFamily: 'Darker Grotesque',
-                                    fontWeight: 700,
-                                    fontSize: '0.8rem'
-                                }}
-                            >
-                                Total Reward:
-                            </strong>{' '}
-                            <span style={{ fontSize: '0.8rem' }}>
-                                {`${Math.round(model.reward_summary.total_reward)} (${model.reward_summary.relative_increase}% uplift over random test)`}
-                            </span>
-                        </Card.Text>
-
-                        <Row>
-                            <Col md={6} style={{ position: 'relative' }}>
-                                <div>
-                                    <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-                                        <strong
-                                            style={{
-                                                fontFamily: 'Darker Grotesque',
-                                                fontWeight: 200,
-                                                fontSize: '0.9rem'
-                                            }}
-                                        >
-                                            Prediction Requests (RPM)
-                                        </strong>
-                                    </div>
-                                    <ResponsiveContainer width="100%" height={200}>
-                                        <LineChart
-                                            data={requestData}
-                                            margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
-                                        >
-                                            <XAxis
-                                                dataKey="time"
-                                                domain={['dataMin', 'dataMax']}
-                                                type="number"
-                                                fontSize="0.7rem"
-                                                tickFormatter={(time) =>
-                                                    new Date(time).toLocaleTimeString([], {
-                                                        hour: '2-digit',
-                                                        minute: '2-digit'
-                                                    })
-                                                }
-                                            />
-                                            <YAxis fontSize="0.7rem" />
-                                            <CartesianGrid stroke="#cccc" strokeDasharray="1 5" />
-                                            <Tooltip
-                                                wrapperStyle={{ fontSize: "0.7rem" }}
-                                                labelFormatter={(label) =>
-                                                    new Date(label).toLocaleString()
-                                                }
-                                            />
-                                            <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
-                                            {variantEntries.map(([internalKey, label], index) => (
-                                                <Line
-                                                    key={internalKey}
-                                                    type="monotone"
-                                                    dataKey={label}
-                                                    stroke={colors[index % colors.length]}
-                                                />
-                                            ))}
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-
-                                {model.prediction_requests === 0 && (
-                                    <div
-                                        style={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            bottom: '40%',
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            color: '#787878',
-                                            fontSize: '0.7rem'
-                                        }}
-                                    >
-                                        No Prediction Requests
-                                    </div>
-                                )}
-                            </Col>
-                            <Col md={6} style={{ position: 'relative' }}>
-                                <div>
-                                    <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-                                        <strong
-                                            style={{
-                                                fontFamily: 'Darker Grotesque',
-                                                fontWeight: 200,
-                                                fontSize: '0.9rem'
-                                            }}
-                                        >
-                                            Exploitation Rate
-                                        </strong>
-                                    </div>
-                                    <ResponsiveContainer width="100%" height={200}>
-                                        <LineChart
-                                            data={exploitationData}
-                                            margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
-                                        >
-                                            <XAxis
-                                                dataKey="n"
-                                                type="number"
-                                                tickFormatter={(n) => `N=${n}`}
-                                                fontSize="0.7rem"
-                                            />
-                                            <YAxis
-                                                domain={[0, 100]}
-                                                tickFormatter={(tick) => `${tick}%`}
-                                                ticks={[0, 50, 100]}
-                                                fontSize="0.7rem"
-                                            />
-                                            <CartesianGrid stroke="#cccc" strokeDasharray="1 5" />
-                                            <Tooltip wrapperStyle={{ fontSize: "0.7rem" }} />
-                                            <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="exploitation"
-                                                stroke="#ff7300"
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                {model.prediction_requests === 0 && (
-                                    <div
-                                        style={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            bottom: '40%',
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            color: '#787878',
-                                            fontSize: '0.7rem'
-                                        }}
-                                    >
-                                        No Prediction Requests
-                                    </div>
-                                )}
-                            </Col>
-                        </Row>
+                                    </Col>
+                                    <Col md={6} style={{ position: 'relative' }}>
+                                        <div>
+                                            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                                                <strong
+                                                    style={{
+                                                        fontFamily: 'Darker Grotesque',
+                                                        fontWeight: 200,
+                                                        fontSize: '0.9rem'
+                                                    }}
+                                                >
+                                                    Exploitation Rate
+                                                </strong>
+                                            </div>
+                                            <ResponsiveContainer width="100%" height={200}>
+                                                <LineChart
+                                                    data={formatExploitationData(additionalData.exploitation_status)}
+                                                    margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                                                >
+                                                    <XAxis
+                                                        dataKey="n"
+                                                        type="number"
+                                                        tickFormatter={(n) => `N=${n}`}
+                                                        fontSize="0.7rem"
+                                                    />
+                                                    <YAxis
+                                                        domain={[0, 100]}
+                                                        tickFormatter={(tick) => `${tick}%`}
+                                                        ticks={[0, 50, 100]}
+                                                        fontSize="0.7rem"
+                                                    />
+                                                    <CartesianGrid stroke="#cccc" strokeDasharray="1 5" />
+                                                    <Tooltip wrapperStyle={{ fontSize: "0.7rem" }} />
+                                                    <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
+                                                    <Line
+                                                        type="monotone"
+                                                        dataKey="exploitation"
+                                                        stroke="#ff7300"
+                                                    />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        {model.prediction_requests === 0 && (
+                                            <div
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: '40%',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    color: '#787878',
+                                                    fontSize: '0.7rem'
+                                                }}
+                                            >
+                                                No Prediction Requests
+                                            </div>
+                                        )}
+                                    </Col>
+                                </Row>
+                            </>
+                        )}
                     </div>
                 </Collapse>
             </Card.Body>
