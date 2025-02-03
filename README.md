@@ -5,7 +5,7 @@
 [![Build Status](https://img.shields.io/travis/langleyi/scout.svg)](https://travis-ci.com/langleyi/scout)
 [![GitHub stars](https://img.shields.io/github/stars/yourusername/scout.svg?style=social)](https://github.com/langleyi/scout)
 
-<img src="https://github.com/user-attachments/assets/b5a98742-cf7a-43de-abcd-a940228a8078" alt="Scout Image" width="300" height="auto">
+<img src="https://github.com/user-attachments/assets/b5a98742-cf7a-43de-abcd-a940228a8078" alt="Scout Image" width="600" height="auto" align="center">
 
 
 **Scout** is an open-source tool that empowers developers to run and manage **self-optimising AB tests** with ease. By dynamically adapting to live feedback, Scout helps you optimize user experiences without requiring a data scientist.
