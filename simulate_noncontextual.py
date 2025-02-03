@@ -128,7 +128,7 @@ def plot_results(df):
 def main():
     # Configuration (adjust these as needed)
     BASE_URL = "http://localhost:3000"  # URL of your CB service
-    CB_MODEL_ID = "ceb083ef-8c2b-4c7b-b728-c3a8d577837d"  # The model ID you created
+    CB_MODEL_ID = "44f7e9ec-f47b-4c84-bed0-b844e501f2df"  # The model ID you created
     N_ITERATIONS = 500  # Number of simulation iterations
 
     print("Starting simulation (non-contextual)...")

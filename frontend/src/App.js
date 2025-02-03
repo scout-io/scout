@@ -211,7 +211,7 @@ function App() {
       <Navbar variant="dark" style={{ width: '100%' }}>
         <Container>
           <Navbar.Brand style={{ fontSize: '20px', fontFamily: 'Darker Grotesque', fontWeight: 400 }}>
-            Scout ⌖
+            Scout 🝊
           </Navbar.Brand>
           <div className="ms-auto" style={{ display: 'flex', alignItems: 'center' }}>
             <Navbar.Text
