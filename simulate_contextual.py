@@ -193,8 +193,8 @@ def plot_results(df):
 
 def main():
     # Configuration
-    BASE_URL = "http://localhost:3000"
-    CB_MODEL_ID = "2b81cfde-541b-46ba-b736-89c13ef852b4"  # The model ID you created
+    BASE_URL = "http://localhost"
+    CB_MODEL_ID = "b4906f87-6135-455f-b0f5-5f2bcba46fc0"  # The model ID you created
     N_ITERATIONS = 500  # How many times to run the simulation loop
 
     # Run the simulation

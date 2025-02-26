@@ -53,7 +53,7 @@ def simulate_bandit(base_url, model_id, n_iterations=1000, sleep_between_calls=0
 
         # 2) Compute reward:
         #    For this toy model variant 'a' gets reward 1.5 and variant 'b' gets reward 1.0.
-        if recommended_variant == "a":
+        if recommended_variant == "b":
             reward = 1.005
         else:
             reward = 1.0
@@ -127,8 +127,8 @@ def plot_results(df):
 
 def main():
     # Configuration (adjust these as needed)
-    BASE_URL = "http://localhost:3000"  # URL of your CB service
-    CB_MODEL_ID = "44f7e9ec-f47b-4c84-bed0-b844e501f2df"  # The model ID you created
+    BASE_URL = "http://localhost"  # URL of your CB service
+    CB_MODEL_ID = "68333e40-75f2-4393-a02b-102cc607818d"  # The model ID you created
     N_ITERATIONS = 500  # Number of simulation iterations
 
     print("Starting simulation (non-contextual)...")
