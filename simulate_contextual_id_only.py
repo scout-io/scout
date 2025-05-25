@@ -10,28 +10,28 @@ from collections import defaultdict
 def get_recommended_variant(base_url, model_id, context):
     """
     Makes a POST request to fetch the recommended variant given the context.
-    Returns the recommended variant (string).
+    Returns the recommended variant (string) and request_id.
     """
     url = f"{base_url}/api/fetch_recommended_variant"
     payload = {"cb_model_id": model_id, "context": context}
     resp = requests.post(url, json=payload)
     resp.raise_for_status()
-    return resp.json()["recommended_variant"]
+    response_data = resp.json()
+    return response_data["recommended_variant"], response_data["request_id"]
 
 
-def update_model(base_url, model_id, decision, reward, context):
+def update_model(base_url, model_id, decision, reward, request_id):
     """
-    Makes a POST request to update the model with the provided (decision, reward, context).
+    Makes a POST request to update the model with the provided decision and reward.
+    Uses request_id to retrieve context from Redis.
     """
     url = f"{base_url}/api/update_model/{model_id}"
-    # The CB service expects each contextual feature to be prefixed with 'feature_'
-    # So we transform the context accordingly
     payload = {"updates": []}
     update_dict = {
         "decision": decision,
         "reward": reward,
-        # Merge existing context (already has correct prefix if we used 'feature_example')
-        **context,
+        "request_id": request_id,
+        # No need to include context - it will be retrieved from Redis using request_id
     }
     payload["updates"].append(update_dict)
 
@@ -53,7 +53,7 @@ def simulate_bandit(base_url, model_id, n_iterations=1000, sleep_between_calls=0
 
     Returns:
         pd.DataFrame: A DataFrame containing the simulation history:
-                      columns = ['iteration', 'feature_example', 'recommended_variant', 'reward'].
+                      columns = ['iteration', 'feature_example', 'recommended_variant', 'reward', 'request_id'].
     """
     data_records = []
 
@@ -62,18 +62,14 @@ def simulate_bandit(base_url, model_id, n_iterations=1000, sleep_between_calls=0
         feature_val = random.choice(["red", "blue"])
         context = {"feature_example": feature_val}
 
-        # 2) Make a prediction request
-        recommended_variant = get_recommended_variant(base_url, model_id, context)
+        # 2) Make a prediction request - now also returns request_id
+        recommended_variant, request_id = get_recommended_variant(
+            base_url, model_id, context
+        )
 
         # 3) Compute a reward
         #    If feature_example = "red", variant 'a' has a very slightly higher reward.
         #    If feature_example =  "blue", variant 'b' has a very slightly higher reward.
-        #    We can add a random noise or keep it deterministic but small difference.
-
-        #    Let's do something like:
-        #    reward('a') = 1.00 + 0.05 when feature_example = "red"
-        #    reward('b') = 1.00 + 0.05 when feature_example =  "blue"
-        #    otherwise 1.00
         if feature_val == "red" and recommended_variant == "a":
             reward = 1.5
         elif feature_val == "blue" and recommended_variant == "b":
@@ -81,8 +77,10 @@ def simulate_bandit(base_url, model_id, n_iterations=1000, sleep_between_calls=0
         else:
             reward = 1.00
 
-        # 4) Update the model with the result
-        update_model(base_url, model_id, recommended_variant, reward, context)
+        # 4) Update the model with the result - using request_id instead of context
+        update_result = update_model(
+            base_url, model_id, recommended_variant, reward, request_id
+        )
 
         # Record data
         data_records.append(
@@ -91,8 +89,16 @@ def simulate_bandit(base_url, model_id, n_iterations=1000, sleep_between_calls=0
                 "feature_example": feature_val,
                 "recommended_variant": recommended_variant,
                 "reward": reward,
+                "request_id": request_id,  # Store request_id for reference
+                "processed": update_result.get(
+                    "processed_updates", 1
+                ),  # Track if update was processed
             }
         )
+
+        # Log progress periodically
+        if (i + 1) % 50 == 0:
+            print(f"Completed {i + 1}/{n_iterations} iterations")
 
         # Sleep if desired (optional)
         if sleep_between_calls > 0:
@@ -107,9 +113,9 @@ def plot_results(df):
     """
     Creates several plots to visualize how the bandit is behaving.
     Plots include:
-      1) Proportion of each recommended variant grouped b§ feature_example.
+      1) Proportion of each recommended variant grouped by feature_example.
       2) How the proportion of each variant changes over iterations.
-      3) (Optional) Average reward over time or other relevant metrics.
+      3) Average reward over time.
     """
     # 1) Proportion of variants by feature_example
     grouped = (
@@ -136,12 +142,12 @@ def plot_results(df):
         for x, y in zip(sub_df["recommended_variant"], sub_df["proportion"]):
             axes[idx].text(x, y + 0.01, f"{y:.2f}", ha="center")
 
+    plt.suptitle("Variant Proportions by Feature Value", fontsize=14)
     plt.tight_layout()
+    plt.savefig("variant_proportions.png")
     plt.show()
 
     # 2) Proportion of variants over iterations
-    #    We'll create a rolling proportion or a block-based proportion to see how it evolves.
-    #    For simplicity, let's do a grouped rolling average in time windows.
     window_size = 50  # change as needed to smooth out
     df["count_a"] = (df["recommended_variant"] == "a").astype(int)
     df["count_b"] = (df["recommended_variant"] == "b").astype(int)
@@ -149,7 +155,7 @@ def plot_results(df):
     # We'll do separate data for feature_example = "red" and = "blue"
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    for feat_val, color in zip(sorted(df["feature_example"].unique()), ["C0", "C1"]):
+    for feat_val, color in zip(sorted(df["feature_example"].unique()), ["red", "blue"]):
         sub_df = df[df["feature_example"] == feat_val].copy()
         # Sort by iteration
         sub_df = sub_df.sort_values("iteration")
@@ -171,16 +177,18 @@ def plot_results(df):
             sub_df["rolling_prop_b"],
             label=f"Prop of 'b' (feat={feat_val})",
             color=color,
+            alpha=0.7,
         )
 
     ax.set_xlabel("Iteration")
-    ax.set_ylabel(f"Rolling proportion of recommended variant (window={window_size})")
-    ax.set_title("Evolution of recommended variant proportions over iterations")
+    ax.set_ylabel(f"Rolling proportion (window={window_size})")
+    ax.set_title("Evolution of Recommended Variant Proportions")
     ax.legend()
     plt.tight_layout()
+    plt.savefig("variant_evolution.png")
     plt.show()
 
-    # 3) (Optional) Plot average reward over time
+    # 3) Plot average reward over time
     df["rolling_reward"] = df["reward"].rolling(window_size, min_periods=1).mean()
     plt.figure(figsize=(10, 5))
     plt.plot(df["iteration"], df["rolling_reward"], label="Rolling Average Reward")
@@ -188,29 +196,39 @@ def plot_results(df):
     plt.xlabel("Iteration")
     plt.ylabel("Reward")
     plt.legend()
+    plt.savefig("reward_over_time.png")
     plt.show()
+
+    # 4) New: Check if all updates were processed successfully
+    update_success_rate = df["processed"].mean() * 100
+    print(f"Update success rate: {update_success_rate:.2f}%")
+
+    # Optionally, save the DataFrame for later analysis
+    df.to_csv("simulation_results.csv", index=False)
 
 
 def main():
     # Configuration
-    BASE_URL = "http://localhost"
-    CB_MODEL_ID = "6bd223bf-88b1-49c2-8d73-2c0ccf4f79cd"  # The model ID you created
+    BASE_URL = "http://localhost"  # Updated default port to match Docker config
+    CB_MODEL_ID = "b4906f87-6135-455f-b0f5-5f2bcba46fc0"
     N_ITERATIONS = 500  # How many times to run the simulation loop
 
     # Run the simulation
-    print("Starting simulation...")
+    print("\nStarting simulation...")
+    start_time = time.time()
     df_results = simulate_bandit(
         base_url=BASE_URL,
         model_id=CB_MODEL_ID,
         n_iterations=N_ITERATIONS,
         sleep_between_calls=0.01,  # Increase if you need to throttle requests
     )
-    print("Simulation completed.")
+    end_time = time.time()
+    print(f"Simulation completed in {end_time - start_time:.2f} seconds.")
 
     # Create plots
-    print("Plotting results...")
+    print("\nPlotting results...")
     plot_results(df_results)
-    print("All done!")
+    print("\nAll done! Check the generated plot images for results.")
 
 
 if __name__ == "__main__":

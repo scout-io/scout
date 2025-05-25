@@ -7,6 +7,12 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock # so Docker SDK can talk to host Docker
     expose:
       - "8000"
+    environment:
+      - REDIS_HOST=redis # Use service name as hostname
+      - REDIS_PORT=6379
+      - REDIS_CONTEXT_TTL=86400
+    depends_on:
+      - redis # Ensure Redis starts before the backend
 
   frontend:
     build: ./frontend
@@ -22,3 +28,21 @@ services:
     depends_on:
       - backend
       - frontend
+
+  redis:
+    image: redis:alpine
+    container_name: scout_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis-data:

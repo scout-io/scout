@@ -7,6 +7,7 @@ import asyncio
 import docker
 import numpy as np
 import joblib
+import redis
 from collections import Counter
 from typing import (
     Dict,
@@ -53,6 +54,11 @@ CONFIG_FILE: str = "config.json"
 MODEL_DIR: str = "models"
 MINIMUM_UPDATE_REQUESTS: int = 10
 
+# Redis configuration
+REDIS_HOST: str = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT: int = int(os.environ.get("REDIS_PORT", 6379))
+REDIS_CONTEXT_TTL: int = int(os.environ.get("REDIS_CONTEXT_TTL", 86400))  # 24 hours
+
 ###############################################################################
 #                                CONFIG MANAGEMENT
 ###############################################################################
@@ -69,6 +75,7 @@ def load_config() -> dict:
         "debug": False,
         "protected_api": False,
         "auth_token": None,
+        "redis_enabled": True,  # New config option
     }
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -90,6 +97,146 @@ def save_config(config: dict) -> None:
     """
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
+
+
+###############################################################################
+#                         REDIS CONTEXT STORAGE
+###############################################################################
+
+# Initialize Redis connection pool
+redis_pool = redis.ConnectionPool(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    decode_responses=True,  # Automatically decode responses
+)
+
+# Global Redis client
+redis_client = redis.Redis(connection_pool=redis_pool)
+
+
+class RedisContextStorage:
+    """
+    Handles storage and retrieval of contextual features in Redis.
+
+    This class provides methods to store context information when a variant is
+    recommended and retrieve it later when updating the model with reward data.
+    """
+
+    @staticmethod
+    def get_redis_key(request_id: str) -> str:
+        """
+        Generate a Redis key for the given request ID.
+
+        Args:
+            request_id: The unique identifier for the request
+
+        Returns:
+            A formatted Redis key string
+        """
+        return f"scout:context:{request_id}"
+
+    @staticmethod
+    def store_context(
+        request_id: str,
+        model_id: str,
+        context: Dict[str, Any],
+        ttl_seconds: int = REDIS_CONTEXT_TTL,
+    ) -> bool:
+        """
+        Store context information in Redis with automatic expiration.
+
+        Args:
+            request_id: Unique identifier for the request
+            model_id: The model ID associated with this context
+            context: A dictionary containing context features
+            ttl_seconds: Time-to-live in seconds (defaults to 24 hours)
+
+        Returns:
+            True if storage was successful, False otherwise
+        """
+        try:
+            key = RedisContextStorage.get_redis_key(request_id)
+            value = json.dumps(
+                {
+                    "model_id": model_id,
+                    "context": context,
+                    "timestamp": datetime.datetime.utcnow().isoformat(),
+                }
+            )
+
+            return redis_client.setex(key, ttl_seconds, value)
+        except Exception as e:
+            print(f"Error storing context in Redis: {e}")
+            return False
+
+    @staticmethod
+    def get_context(request_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve context information from Redis by request ID.
+
+        Args:
+            request_id: The unique identifier for the request
+
+        Returns:
+            A dictionary containing the stored context, or None if not found
+        """
+        try:
+            key = RedisContextStorage.get_redis_key(request_id)
+            value = redis_client.get(key)
+
+            if not value:
+                return None
+
+            data = json.loads(value)
+
+            return data.get("context")
+        except Exception as e:
+            print(f"Error retrieving context from Redis: {e}")
+            return None
+
+    @staticmethod
+    def delete_context(request_id: str) -> bool:
+        """
+        Delete context information from Redis.
+
+        Args:
+            request_id: The unique identifier for the request
+
+        Returns:
+            True if deletion was successful, False otherwise
+        """
+        try:
+            key = RedisContextStorage.get_redis_key(request_id)
+            return redis_client.delete(key) > 0
+        except Exception as e:
+            print(f"Error deleting context from Redis: {e}")
+            return False
+
+    @staticmethod
+    def check_redis_health() -> bool:
+        """
+        Check if Redis connection is healthy.
+
+        Returns:
+            True if Redis is responding, False otherwise
+        """
+        try:
+            return redis_client.ping()
+        except Exception:
+            return False
+
+    @staticmethod
+    def get_all_keys_count() -> int:
+        """
+        Get count of all context keys in Redis (for monitoring).
+
+        Returns:
+            Number of context keys currently stored
+        """
+        try:
+            return len(redis_client.keys("scout:context:*"))
+        except Exception:
+            return -1  # Error indicator
 
 
 ###############################################################################
@@ -116,7 +263,7 @@ def encode_value(feature_name: str, value: Any, model: "WrappedMAB") -> float:
             model.context_encoders[feature_name] = {}
         encoder = model.context_encoders[feature_name]
         if value not in encoder:
-            # Assign next available integer code for this feature’s categorical value.
+            # Assign next available integer code for this feature's categorical value.
             encoder[value] = float(len(encoder))
         return encoder[value]
     else:
@@ -220,7 +367,7 @@ class UpdateModelRequest(BaseModel):
 
     updates: A list of updates, each containing at least 'decision' (the chosen variant)
              and 'reward' (the observed reward). Additional fields such as 'featureN'
-             may be included for contextual MAB usage.
+             may be included for contextual MAB usage or 'request_id' for context retrieval.
     """
 
     updates: List[Dict[str, Any]]
@@ -233,12 +380,15 @@ class FetchActionRequest(BaseModel):
     cb_model_id: The identifier of the model to query.
     context: Optional contextual data (e.g., 'featureX': value). If not provided,
              an empty context is assumed.
+    request_id: Optional unique identifier for the request. If not provided,
+                a new UUID will be generated.
     """
 
     cb_model_id: str
     context: Optional[Dict[str, Union[str, float, int, bool]]] = Field(
         default_factory=dict
     )
+    request_id: Optional[str] = None
 
 
 class RolloutGlobalVariantRequest(BaseModel):
@@ -498,6 +648,43 @@ def generate_token() -> Dict[str, str]:
     return {"token": new_token}
 
 
+@app.get("/admin/redis_health")
+def check_redis_health() -> Dict[str, Any]:
+    """
+    Check if Redis connection is healthy and return status information.
+    """
+    cfg = load_config()
+    if not cfg.get("redis_enabled", True):
+        return {"redis_enabled": False, "message": "Redis is disabled in configuration"}
+
+    is_healthy = RedisContextStorage.check_redis_health()
+    keys_count = RedisContextStorage.get_all_keys_count() if is_healthy else -1
+
+    return {
+        "redis_enabled": True,
+        "redis_healthy": is_healthy,
+        "context_keys_count": keys_count,
+        "redis_host": REDIS_HOST,
+        "redis_port": REDIS_PORT,
+        "ttl_seconds": REDIS_CONTEXT_TTL,
+    }
+
+
+@app.post("/admin/toggle_redis")
+def toggle_redis(enabled: bool = Body(...)) -> Dict[str, Any]:
+    """
+    Enable or disable Redis context storage.
+    """
+    cfg = load_config()
+    cfg["redis_enabled"] = enabled
+    save_config(cfg)
+
+    return {
+        "redis_enabled": enabled,
+        "message": f"Redis context storage has been {'enabled' if enabled else 'disabled'}",
+    }
+
+
 ###############################################################################
 #                           MODEL MANAGEMENT ENDPOINTS
 ###############################################################################
@@ -609,19 +796,36 @@ async def update_model(
     cb_model_id: str,
     request: UpdateModelRequest,
     _: None = Depends(maybe_verify_token),
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     """
-    Update a model with new decision/reward data (and optional context features).
-    Stores the first 100 updates to perform a single batch fit, then uses
-    partial_fit for subsequent updates.
+    Update a model with new decision/reward data.
+
+    Context can be provided either:
+    1. Directly in the update object with fields starting with "feature"
+    2. By providing a request_id to retrieve previously stored context from Redis
+
+    This allows for simpler client integration where clients don't need to track
+    and re-send context data.
     """
     model = models.get(cb_model_id)
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
 
+    cfg = load_config()
+    redis_enabled = cfg.get("redis_enabled", True)
+
+    processed_updates = 0
+    missing_context = 0
+    redis_hits = 0
+
     for update in request.updates:
-        decision = update["decision"]
-        reward = update["reward"]
+        decision = update.get("decision")
+        if decision is None:
+            continue
+
+        reward = update.get("reward")
+        if reward is None:
+            continue
 
         # Convert decision from user label to internal integer
         if isinstance(decision, str):
@@ -639,20 +843,51 @@ async def update_model(
                 )
 
         # -------------------------------
-        # Encode context features using our helper.
+        # Context retrieval logic
         # -------------------------------
-        # Extract only keys starting with "feature"
-        context_features = {k: v for k, v in update.items() if k.startswith("feature")}
-        encoded_context = encode_context(model, context_features)
-        # Wrap into 2D array when calling fit/partial_fit.
-        context_array = np.array([encoded_context])
-        # --------------------------------
+        context_features = {}
+
+        # First check for request_id if Redis is enabled
+        if redis_enabled and "request_id" in update and update["request_id"]:
+            request_id = update["request_id"]
+            cached_context = RedisContextStorage.get_context(request_id)
+
+            if cached_context:
+                context_features = {
+                    k: v for k, v in cached_context.items() if k.startswith("feature")
+                }
+                redis_hits += 1
+
+        # If no context from Redis, use any directly provided features
+        if not context_features:
+            context_features = {
+                k: v for k, v in update.items() if k.startswith("feature")
+            }
+
+        # Check if we have any context to use
+        if not context_features and model.features:
+            missing_context += 1
+            # If model requires context features but none provided, skip this update
+            continue
+
+        # Encode context features
+        encoded_context = (
+            encode_context(model, context_features)
+            if context_features
+            else np.array([])
+        )
+
+        # Wrap into 2D array for fit/partial_fit
+        context_array = (
+            np.array([encoded_context])
+            if encoded_context.size > 0
+            else np.empty((1, 0))
+        )
 
         # =========================================
-        # Accumulate first 100 updates, do batch fit
+        # Accumulate first updates for batch fit
         if model.update_requests < MINIMUM_UPDATE_REQUESTS:
             model.initial_decisions.append(decision)
-            # Store the 1D encoded context vector.
             model.initial_contexts.append(encoded_context)
             model.initial_rewards.append(reward)
             model._incr_update_request()
@@ -690,11 +925,18 @@ async def update_model(
             model._update_update_request_trail(variant=decision, reward=reward)
         # =========================================
 
-    # Persist to disk every 100 updates
-    if model.update_requests % 100 == 0:
+        processed_updates += 1
+
+    # Persist to disk every 100 updates or if all updates in this batch were processed
+    if model.update_requests % 100 == 0 or processed_updates == len(request.updates):
         save_model(cb_model_id, model)
 
-    return {"message": "Model updated successfully"}
+    return {
+        "message": "Model updated successfully",
+        "processed_updates": processed_updates,
+        "missing_context": missing_context,
+        "redis_hits": redis_hits,
+    }
 
 
 @app.post("/api/rollout_global_variant/{cb_model_id}")
@@ -760,17 +1002,31 @@ async def fetch_recommended_variant(
     """
     Fetch a recommended variant from the specified model,
     optionally providing contextual features.
+
+    The context is stored in Redis keyed by the request_id, allowing
+    it to be retrieved later when updating the model.
     """
     cb_model_id = request.cb_model_id
     model = models.get(cb_model_id)
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
 
+    # Generate request_id if not provided
+    request_id = request.request_id or str(uuid.uuid4())
+
     # Check for global rollout
     if model.global_rolled_out and model.get_global_variant() is not None:
         internal_variant = model.get_global_variant()
         recommended_label = model.variant_labels.get(internal_variant, internal_variant)
-        return {"recommended_variant": recommended_label}
+
+        # Store context even with global variant for consistency
+        cfg = load_config()
+        if cfg.get("redis_enabled", True) and request.context:
+            RedisContextStorage.store_context(
+                request_id=request_id, model_id=cb_model_id, context=request.context
+            )
+
+        return {"recommended_variant": recommended_label, "request_id": request_id}
 
     # -------------------------------
     # Encode context for prediction.
@@ -781,9 +1037,15 @@ async def fetch_recommended_variant(
         }
         encoded_context = encode_context(model, context_features)
         feature_array = np.array([encoded_context])
+
+        # Store context in Redis for later use
+        cfg = load_config()
+        if cfg.get("redis_enabled", True):
+            RedisContextStorage.store_context(
+                request_id=request_id, model_id=cb_model_id, context=request.context
+            )
     else:
         feature_array = np.empty((1, 0))
-    # -------------------------------
 
     # If not enough updates for an initial fit, random choice
     if model.update_requests < MINIMUM_UPDATE_REQUESTS:
@@ -823,7 +1085,7 @@ async def fetch_recommended_variant(
     if model.prediction_requests % 100 == 0:
         save_model(cb_model_id, model)
 
-    return {"recommended_variant": recommended_label}
+    return {"recommended_variant": recommended_label, "request_id": request_id}
 
 
 ###############################################################################
@@ -956,3 +1218,38 @@ def stream_logs() -> StreamingResponse:
                 yield line + "\n"
 
     return StreamingResponse(log_generator(), media_type="text/plain")
+
+
+###############################################################################
+#                            STARTUP EVENT HANDLERS
+###############################################################################
+
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Startup event handler that runs when the application starts.
+    Checks Redis connection and logs status.
+    """
+
+    # Check Redis connection
+    cfg = load_config()
+    if cfg.get("redis_enabled", True):
+        try:
+            is_redis_healthy = RedisContextStorage.check_redis_health()
+            if is_redis_healthy:
+                print(f"Successfully connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
+                keys_count = RedisContextStorage.get_all_keys_count()
+                print(f"   Found {keys_count} context keys in Redis")
+            else:
+                print(
+                    f"WARNING: Could not connect to Redis at {REDIS_HOST}:{REDIS_PORT}"
+                )
+                print(
+                    "   Context storage will not be available unless Redis becomes available."
+                )
+                print("   You can disable Redis via the /admin/toggle_redis endpoint.")
+        except Exception as e:
+            print(f"ERROR connecting to Redis: {e}")
+    else:
+        print("ℹ️Redis context storage is disabled in configuration")

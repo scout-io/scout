@@ -3,5 +3,6 @@
   "port": 8000,
   "debug": false,
   "protected_api": false,
-  "auth_token": null
+  "auth_token": null,
+  "redis_enabled": true
 }
