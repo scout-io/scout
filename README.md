@@ -4,13 +4,13 @@
 
 
 <p align="center">
-  <a href="https://github.com/langleyi/scout">
+  <a href="https://github.com/scout-io/scout">
     <img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="Version">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
   </a>
-  <a href="https://github.com/langleyi/scout">
+  <a href="https://github.com/scout-io/scout">
     <img src="https://img.shields.io/github/stars/yourusername/scout.svg?style=social" alt="GitHub stars">
   </a>
 </p>

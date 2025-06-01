@@ -2,17 +2,24 @@
 services:
   backend:
     build: ./backend
-    container_name: fastapi_container
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # so Docker SDK can talk to host Docker
+      - scout_metrics:/tmp/scout_metrics # Add metrics volume
     expose:
       - "8000"
     environment:
       - REDIS_HOST=redis # Use service name as hostname
       - REDIS_PORT=6379
       - REDIS_CONTEXT_TTL=86400
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/scout_metrics # Set metrics directory
     depends_on:
       - redis # Ensure Redis starts before the backend
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/docs" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   frontend:
     build: ./frontend
@@ -34,9 +41,7 @@ services:
     container_name: scout_redis
     ports:
       - "6379:6379"
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --save "" --appendonly no
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
@@ -44,5 +49,22 @@ services:
       timeout: 10s
       retries: 3
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: scout_prometheus
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+
 volumes:
-  redis-data:
+  scout_metrics: # Define the metrics volume
+  prometheus_data: # Prometheus data persistence

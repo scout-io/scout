@@ -210,7 +210,7 @@ def plot_results(df):
 def main():
     # Configuration
     BASE_URL = "http://localhost"  # Updated default port to match Docker config
-    CB_MODEL_ID = "b4906f87-6135-455f-b0f5-5f2bcba46fc0"
+    CB_MODEL_ID = "eae58fef-d38b-403b-9243-fc6830e74651"
     N_ITERATIONS = 500  # How many times to run the simulation loop
 
     # Run the simulation
