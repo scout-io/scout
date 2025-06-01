@@ -50,7 +50,16 @@ function App() {
     <>
       <Navbar variant="dark" style={{ width: '100%' }}>
         <Container>
-          <Navbar.Brand style={{ fontSize: '20px', fontFamily: 'Darker Grotesque', fontWeight: 400 }}>
+          <Navbar.Brand
+            href="/"
+            style={{
+              fontSize: '20px',
+              fontFamily: 'Darker Grotesque',
+              fontWeight: 400,
+              cursor: 'pointer',
+              textDecoration: 'none'
+            }}
+          >
             Scout 🝊
           </Navbar.Brand>
           <div className="ms-auto" style={{ display: 'flex', alignItems: 'center' }}>
@@ -61,7 +70,7 @@ function App() {
             </Navbar.Text>
             <Navbar.Text style={{ fontSize: '15px' }}>
               <a
-                href="https://github.com/yourgithubusername/reponame"
+                href="https://github.com/scout-io/scout"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: 'inherit', textDecoration: 'none' }}
@@ -189,7 +198,6 @@ function App() {
                 />
               </ListItemButton>
             </ListItem>
-
           </List>
         </Box>
 
