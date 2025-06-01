@@ -4,15 +4,21 @@
 FROM node:16-alpine as build
 
 WORKDIR /usr/src/app
+
+# Copy package files
 COPY package*.json ./
-RUN npm install
+
+# Install dependencies with reduced memory usage
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+RUN npm ci --only=production
 
 # Copy the rest of your React code
 COPY . /usr/src/app
+
+# Build with reduced memory usage
 RUN npm run build
 
-# Production stage: serve with a simple http server OR do dev server
-# Option 1: Serve with "serve" or any production server
+# Production stage: serve with a simple http server
 FROM node:16-alpine as production
 WORKDIR /usr/src/app
 COPY --from=build /usr/src/app/build ./build
