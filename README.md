@@ -2,13 +2,13 @@
 coverY: 0
 ---
 
-# Scout
+# Untitled
 
 
 
 <div align="center"><img src="https://github.com/user-attachments/assets/191d481a-ba00-4a13-ba1a-32b2325ff51d" alt="Scout Logo" width="200"></div>
 
-## Scout: Self-Optimizing AB Tests Made Easy
+
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/scout-io/scout)[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)[![GitHub stars](https://img.shields.io/github/stars/scout-io/scout.svg?style=social)](https://github.com/scout-io/scout)[![Documentation](https://img.shields.io/badge/docs-GitBook-orange.svg)](https://scout-3.gitbook.io/scout-docs)
 

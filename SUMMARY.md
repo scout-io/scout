@@ -1,6 +1,6 @@
 # Table of contents
 
-* [Scout](README.md)
+* [Untitled](README.md)
 * [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md)
 * [Contributing to Scout](CONTRIBUTING.md)
 * [Scout Backend](backend/README.md)
