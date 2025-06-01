@@ -1,6 +1,6 @@
 # Summary
 
-* [Introduction](../)
+* [Introduction](<../README (1).md>)
 * [What are Self-Optimizing AB Tests?](what-are-self-optimizing-ab-tests.md)
 * [Getting Started](getting-started.md)
   * [Prerequisites](getting-started.md#prerequisites)

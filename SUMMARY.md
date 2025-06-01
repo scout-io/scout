@@ -1,6 +1,7 @@
 # Table of contents
 
-* [Welcome to Scout: Self-Optimizing AB Tests](README.md)
+* [Scout](README.md)
+* [Welcome to Scout: Self-Optimizing AB Tests](<README (1).md>)
   * [Summary](docs/SUMMARY.md)
   * [Advanced Topics](docs/advanced-topics.md)
   * [API Reference](docs/api-reference.md)
@@ -14,4 +15,3 @@
 * [Scout Backend](backend/README.md)
 * [Contributing to Scout](CONTRIBUTING.md)
 * [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md)
-* [Untitled](<README (1).md>)
