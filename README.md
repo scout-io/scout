@@ -1,10 +1,3 @@
----
-coverY: 0
----
-
-# Untitled
-
-
 
 <div align="center"><img src="https://github.com/user-attachments/assets/191d481a-ba00-4a13-ba1a-32b2325ff51d" alt="Scout Logo" width="200"></div>
 
