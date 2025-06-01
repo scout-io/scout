@@ -1,9 +1,10 @@
 ---
-hidden: true
-icon: hand-wave
+coverY: 0
 ---
 
-# README
+# Scout
+
+
 
 <div align="center"><img src="https://github.com/user-attachments/assets/191d481a-ba00-4a13-ba1a-32b2325ff51d" alt="Scout Logo" width="200"></div>
 
@@ -11,11 +12,11 @@ icon: hand-wave
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/scout-io/scout)[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)[![GitHub stars](https://img.shields.io/github/stars/scout-io/scout.svg?style=social)](https://github.com/scout-io/scout)[![Documentation](https://img.shields.io/badge/docs-GitBook-orange.svg)](https://scout-3.gitbook.io/scout-docs)
 
-_Dynamically adapt and optimize user experiences with minimal ML expertise._
-
 <div align="center"><img src="https://github.com/user-attachments/assets/b5a98742-cf7a-43de-abcd-a940228a8078" alt="Scout Dashboard Screenshot" width="700"></div>
 
-**Scout** is an open-source tool that empowers developers to run and manage **self-optimizing AB tests** (powered by multi-armed bandit algorithms) with ease. If you want to continuously improve your application based on user interactions but don't have a dedicated data science team, Scout is for you. It provides a user-friendly interface and a straightforward API to create, monitor, and get recommendations from contextual bandit models, allowing your application to learn and adapt in real-time.
+**Scout** is an open-source tool that empowers developers to run and manage **self-optimizing AB tests**.&#x20;
+
+Scout provides a user-friendly interface and a straightforward API to create, monitor, and get recommendations from multi-armed bandit models, allowing your application to learn and adapt in real-time.
 
 ***
 
@@ -199,8 +200,6 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ***
 
-### Contact
 
-\[Your Name/Organization Name] - \[your-contact-email@example.com]
 
 Project Link: [https://github.com/scout-io/scout](https://github.com/scout-io/scout)
