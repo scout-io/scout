@@ -1,10 +1,6 @@
 # Table of contents
 
-* [Untitled](README.md)
-* [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md)
-* [Contributing to Scout](CONTRIBUTING.md)
-* [Scout Backend](backend/README.md)
-* [Welcome to Scout: Self-Optimizing AB Tests](docs/README.md)
+* [Welcome to Scout: Self-Optimizing AB Tests](README.md)
   * [Summary](docs/SUMMARY.md)
   * [Advanced Topics](docs/advanced-topics.md)
   * [API Reference](docs/api-reference.md)
@@ -15,3 +11,7 @@
   * [License](docs/license.md)
   * [Using the Scout UI](docs/using-the-scout-ui.md)
   * [What are Self-Optimizing AB Tests?](docs/what-are-self-optimizing-ab-tests.md)
+* [Scout Backend](backend/README.md)
+* [Contributing to Scout](CONTRIBUTING.md)
+* [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md)
+* [Untitled](<README (1).md>)

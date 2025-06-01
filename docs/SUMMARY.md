@@ -1,6 +1,6 @@
 # Summary
 
-* [Introduction](README.md)
+* [Introduction](../)
 * [What are Self-Optimizing AB Tests?](what-are-self-optimizing-ab-tests.md)
 * [Getting Started](getting-started.md)
   * [Prerequisites](getting-started.md#prerequisites)
@@ -31,4 +31,4 @@
   * [Contextual Features](advanced-topics.md#contextual-features)
   * [Metrics and Monitoring](advanced-topics.md#metrics-and-monitoring)
 * [Contributing](contributing.md)
-* [License](license.md) 
+* [License](license.md)
