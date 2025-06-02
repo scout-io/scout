@@ -64,6 +64,7 @@ function App() {
           </Navbar.Brand>
           <div className="ms-auto" style={{ display: 'flex', alignItems: 'center' }}>
             <Navbar.Text
+              href="scout-3.gitbook.io/scout-docs"
               style={{ fontSize: '15px', marginRight: '20px', fontFamily: 'Darker Grotesque', fontWeight: 400 }}
             >
               Docs
