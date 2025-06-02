@@ -63,12 +63,12 @@ function App() {
             Scout 🝊
           </Navbar.Brand>
           <div className="ms-auto" style={{ display: 'flex', alignItems: 'center' }}>
-            <Navbar.Link
+            <Navbar.Text
               href="https://scout-3.gitbook.io/scout-docs"
               style={{ fontSize: '15px', marginRight: '20px', fontFamily: 'Darker Grotesque', fontWeight: 400 }}
             >
               Docs
-            </Navbar.Link>
+            </Navbar.Text>
             <Navbar.Text style={{ fontSize: '15px' }}>
               <a
                 href="https://github.com/scout-io/scout"
