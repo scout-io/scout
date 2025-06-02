@@ -182,7 +182,7 @@ Here's a conceptual overview of how you might use Scout:
 
 ### Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md) for details.
+Contributions are welcome! Please see [CONTRIBUTING.md](broken-reference) and our [Code of Conduct](broken-reference) for details.
 
 ***
 
