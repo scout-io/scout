@@ -4,11 +4,11 @@
 
 &#x20;                                                   [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/scout-io/scout) [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md) [![GitHub stars](https://img.shields.io/github/stars/scout-io/scout.svg?style=social)](https://github.com/scout-io/scout) [![Documentation](https://img.shields.io/badge/docs-GitBook-orange.svg)](https://scout-3.gitbook.io/scout-docs)
 
-<div align="center"><img src="https://github.com/user-attachments/assets/b5a98742-cf7a-43de-abcd-a940228a8078" alt="Scout Dashboard Screenshot" width="700"></div>
+<div align="center"><img src="https://github.com/user-attachments/assets/b5a98742-cf7a-43de-abcd-a940228a8078" alt="" width="700"></div>
 
 **Scout** is an open-source tool that empowers developers to run and manage **self-optimizing AB tests**.
 
-Scout provides a user-friendly interface and a straightforward API to create, monitor, and get recommendations from multi-armed bandit models, allowing your application to learn and adapt in real-time.
+Scout provides a user-friendly interface and a straightforward API to create, monitor, and get recommendations from fully autonomous bandit models, allowing your application to learn and adapt in real-time.
 
 ***
 
@@ -33,7 +33,7 @@ Scout provides a user-friendly interface and a straightforward API to create, mo
 Traditional AB testing can be slow and cumbersome. You set up variants, wait for statistical significance, and then manually roll out the winner. Self-optimizing AB tests, powered by multi-armed bandits, offer a more dynamic approach:
 
 * **Faster Optimization**: Bandits start directing more traffic to better-performing variants earlier, maximizing positive outcomes even while the test is running.
-* **Contextual Decisions**: Go beyond simple A/B. Scout allows you to use contextual information (e.g., user device, time of day, user segment) to personalize experiences. The best variant might be different for different contexts!
+* **Contextual Decisions**: Go beyond simple A/B. Scout allows you to use contextual information (e.g., user device, time of day, user segment) to personalize experiences. The best variant might be different for different contexts.
 * **Always Learning**: The system continuously learns from new data, adapting to changing user behavior or preferences.
 * **Developer-Friendly**: Scout is designed for developers. No deep ML knowledge is required to get started.
 
