@@ -1,6 +1,6 @@
 # API Reference
 
-Scout exposes a RESTful API for all its operations. This allows for programmatic control over test creation, management, recommendations, and system administration.
+Scout exposes a RESTful API for all its operations. This allows for programmatic control over Test creation, management, recommendations, and system administration.
 
 The base URL for the API is typically `http://localhost:8000` when running locally with default Docker Compose settings.
 
@@ -36,24 +36,7 @@ These endpoints are for managing the Scout system itself.
 *   **Request Body:**
     ```json
     {
-      "protected_api": true_or_false 
-    }
-    ```
-    *(Note: The request body in `app.py` takes `protected_api: bool = Body(...)` which means it expects a direct boolean, not a JSON object. So the curl would be `curl -X POST -H "Content-Type: application/json" -d 'true' http://localhost:8000/admin/set_protection` if setting to true.)* Corrected: The `Body(...)` implies it expects a JSON body with that key.
-*   **Request Body (Corrected based on FastAPI `Body(...)` for a boolean):**
-    ```json
-    true
-    ```
-    or
-    ```json
-    false
-    ```
-    *(Correction: FastAPI with `some_param: bool = Body(...)` typically expects `{"some_param": true}`. If it's `Body(embed=True)`, then it's `{"protected_api": true}`. If it's `Body()` without `embed=True` for a single pydantic field or simple type, it expects the raw value. Given it's `protected_api: bool = Body(...)`, it likely expects the raw boolean `true` or `false` as the direct body if Content-Type is `application/json`. However, the most common and robust way FastAPI handles this is by expecting a JSON object. Assuming standard behavior for clarity in docs, will use JSON object.)*
-
-    **Request Body (Standard FastAPI for `some_param: bool = Body(...)`):**
-    ```json
-    {
-        "protected_api": true 
+      "protected_api": true 
     }
     ```
 *   **Response:**
@@ -88,10 +71,10 @@ These endpoints are for managing the Scout system itself.
     }
     ```
 
-### Get Model Configuration
+### Get Test Default Configuration
 
 *   **GET** `/admin/model_config`
-*   **Description:** Retrieves the default configuration settings for new models.
+*   **Description:** Retrieves the default configuration settings for new Tests.
 *   **Response (example values):**
     ```json
     {
@@ -101,10 +84,10 @@ These endpoints are for managing the Scout system itself.
     }
     ```
 
-### Update Model Configuration
+### Update Test Default Configuration
 
 *   **POST** `/admin/model_config`
-*   **Description:** Updates the default configuration settings for new models.
+*   **Description:** Updates the default configuration settings for new Tests.
 *   **Request Body:**
     ```json
     {
@@ -116,7 +99,7 @@ These endpoints are for managing the Scout system itself.
 *   **Response:**
     ```json
     {
-      "message": "Model config updated successfully",
+      "message": "Test default config updated successfully",
       "config": {
         "trail_time_window_minutes": 120,
         "trail_bucket_granularity_seconds": 30,
@@ -137,9 +120,9 @@ These endpoints are for managing the Scout system itself.
       "debug": false,
       "protected_api": true,
       "auth_token": "current_masked_or_null_token", // For security, actual token may not be shown
-      "trail_time_window_minutes": 60, // Duplicates model_config, part of global config
-      "trail_bucket_granularity_seconds": 60, // Duplicates model_config
-      "minimum_update_requests": 10 // Duplicates model_config
+      "trail_time_window_minutes": 60, // Part of global config, also default for new Tests
+      "trail_bucket_granularity_seconds": 60, // Part of global config, also default for new Tests
+      "minimum_update_requests": 10 // Part of global config, also default for new Tests
     }
     ```
 
@@ -166,7 +149,7 @@ These endpoints are for managing the Scout system itself.
 ### Update Redis Configuration (Live)
 
 *   **POST** `/admin/redis_config`
-*   **Description:** Updates Redis connection parameters (host, port) and context TTL live. Note that changing these for an active system could disrupt operations if the new Redis is not a mirror or if context TTL changes drastically.
+*   **Description:** Updates Redis connection parameters (host, port) and context Time-To-Live (TTL) live. Note that changing these for an active system could disrupt operations if the new Redis is not a mirror or if context TTL changes drastically.
 *   **Request Body:**
     ```json
     {
@@ -186,14 +169,14 @@ These endpoints are for managing the Scout system itself.
     ```
     *(Or an error message if connection to new Redis fails)*
 
-## Model Endpoints
+## Test Endpoints
 
-These endpoints are for creating, managing, and interacting with self-optimizing AB test models.
+These endpoints are for creating, managing, and interacting with Tests.
 
-### Create Model
+### Create Test
 
 *   **POST** `/api/create_model` **(Protected)**
-*   **Description:** Creates a new self-optimizing test (bandit model).
+*   **Description:** Creates a new Test.
 *   **Request Body (`CreateModelRequest`):**
     ```json
     {
@@ -208,8 +191,8 @@ These endpoints are for creating, managing, and interacting with self-optimizing
 *   **Response:**
     ```json
     {
-      "message": "Model created successfully",
-      "cb_model_id": "unique_model_identifier_string",
+      "message": "Test created successfully",
+      "cb_model_id": "unique_test_identifier_string", // This is the Test ID
       "name": "My New Test Name",
       "variants": {
         "0": "Variant A Label",
@@ -219,30 +202,30 @@ These endpoints are for creating, managing, and interacting with self-optimizing
     }
     ```
 
-### Delete Model
+### Delete Test
 
 *   **POST** `/api/delete_model/{cb_model_id}` **(Protected)**
-*   **Description:** Deletes a model and all its associated data.
+*   **Description:** Deletes a Test and all its associated data.
 *   **Path Parameter:**
-    *   `cb_model_id` (string): The ID of the model to delete.
+    *   `cb_model_id` (string): The ID of the Test to delete.
 *   **Response:**
     ```json
     {
-      "message": "Model cb_model_id successfully deleted.",
-      "cb_model_id": "unique_model_identifier_string"
+      "message": "Test cb_model_id successfully deleted.",
+      "cb_model_id": "unique_test_identifier_string"
     }
     ```
-    *(Or a 404 if model not found)*
+    *(Or a 404 if Test not found)*
 
-### List Models
+### List Tests
 
 *   **GET** `/api/models`
-*   **Description:** Retrieves a list of all active models with summary information.
-*   **Response (Array of model summaries):**
+*   **Description:** Retrieves a list of all active Tests with summary information.
+*   **Response (Array of Test summaries):**
     ```json
     [
       {
-        "cb_model_id": "id1",
+        "cb_model_id": "id1", // Test ID
         "name": "Test Alpha",
         "num_variants": 2,
         "total_predictions": 1500,
@@ -253,16 +236,16 @@ These endpoints are for creating, managing, and interacting with self-optimizing
         "is_active": true,
         "global_variant_rollout": null_or_variant_id
       },
-      { ... another model ... }
+      { ... another Test ... }
     ]
     ```
 
-### Get Model Details
+### Get Test Details
 
 *   **GET** `/api/model_details/{cb_model_id}`
-*   **Description:** Retrieves detailed information and performance metrics for a specific model.
+*   **Description:** Retrieves detailed information and performance metrics for a specific Test.
 *   **Path Parameter:**
-    *   `cb_model_id` (string): The ID of the model.
+    *   `cb_model_id` (string): The ID of the Test.
 *   **Response (example, structure may vary with details):**
     ```json
     {
@@ -287,14 +270,14 @@ These endpoints are for creating, managing, and interacting with self-optimizing
       "exploitation_exploration_ratio": { /* data */ }
     }
     ```
-    *(Or a 404 if model not found)*
+    *(Or a 404 if Test not found)*
 
-### Update Model (Report Rewards)
+### Update Test (Report Rewards)
 
 *   **POST** `/api/update_model/{cb_model_id}` **(Protected)**
-*   **Description:** Updates a model with new reward data. This is how the model learns.
+*   **Description:** Updates a Test with new reward data. This is how the Test learns.
 *   **Path Parameter:**
-    *   `cb_model_id` (string): The ID of the model to update.
+    *   `cb_model_id` (string): The ID of the Test to update.
 *   **Request Body (`UpdateModelRequest`):**
     ```json
     {
@@ -314,7 +297,7 @@ These endpoints are for creating, managing, and interacting with self-optimizing
 *   **Response:**
     ```json
     {
-      "message": "Model updated successfully with X records (Y failures).",
+      "message": "Test updated successfully with X records (Y failures).",
       "cb_model_id": "id1",
       "processed_updates": X,
       "failed_updates": Y 
@@ -324,7 +307,7 @@ These endpoints are for creating, managing, and interacting with self-optimizing
 ### Fetch Recommended Variant
 
 *   **POST** `/api/fetch_recommended_variant` **(Protected)**
-*   **Description:** Fetches a recommended variant from the specified model. Optionally stores context for the decision if `request_id` is provided.
+*   **Description:** Fetches a recommended variant from the specified Test. Optionally stores context for the decision if `request_id` is provided.
 *   **Request Body (`FetchActionRequest`):**
     ```json
     {
@@ -350,9 +333,9 @@ These endpoints are for creating, managing, and interacting with self-optimizing
 ### Rollout Global Variant
 
 *   **POST** `/api/rollout_global_variant/{cb_model_id}` **(Protected)**
-*   **Description:** Forces all future recommendations from this model to be a specific variant, overriding the bandit logic.
+*   **Description:** Forces all future recommendations from this Test to be a specific variant, overriding the bandit logic.
 *   **Path Parameter:**
-    *   `cb_model_id` (string): The ID of the model.
+    *   `cb_model_id` (string): The ID of the Test.
 *   **Request Body (`RolloutGlobalVariantRequest`):**
     ```json
     {
@@ -363,7 +346,7 @@ These endpoints are for creating, managing, and interacting with self-optimizing
 *   **Response:**
     ```json
     {
-      "message": "Global variant rollout for model id1 set to variant X.",
+      "message": "Global variant rollout for Test id1 set to variant X.",
       "cb_model_id": "id1",
       "global_variant_id": 0,
       "global_variant_label": "Variant A Label"
@@ -373,13 +356,13 @@ These endpoints are for creating, managing, and interacting with self-optimizing
 ### Clear Global Variant Rollout
 
 *   **POST** `/api/clear_global_variant/{cb_model_id}` **(Protected)**
-*   **Description:** Clears any active global variant rollout for the model, returning it to normal bandit operation.
+*   **Description:** Clears any active global variant rollout for the Test, returning it to normal bandit operation.
 *   **Path Parameter:**
-    *   `cb_model_id` (string): The ID of the model.
+    *   `cb_model_id` (string): The ID of the Test.
 *   **Response:**
     ```json
     {
-      "message": "Global variant rollout cleared for model id1.",
+      "message": "Global variant rollout cleared for Test id1.",
       "cb_model_id": "id1"
     }
     ```
@@ -408,13 +391,13 @@ These endpoints are for creating, managing, and interacting with self-optimizing
 ### Get Prometheus Metrics
 
 *   **GET** `/metrics`
-*   **Description:** Exposes application and model metrics in Prometheus format.
+*   **Description:** Exposes application and Test metrics in Prometheus format.
 *   **Response Type:** `text/plain; version=0.0.4; charset=utf-8`
 *   **Output:** Standard Prometheus metrics exposition format, including counters, gauges, histograms for things like:
     *   HTTP request counts and latencies (`http_requests_total`, `http_request_duration_seconds`)
-    *   Model predictions, updates, rewards (`model_predictions_total`, `model_updates_total`, `model_rewards_total`, `model_reward_average`)
+    *   Test predictions, updates, rewards (`model_predictions_total`, `model_updates_total`, `model_rewards_total`, `model_reward_average`)
     *   Redis operations (`redis_operations_total`, `redis_operation_duration_seconds`)
-    *   Active model counts (`active_models`)
+    *   Active Test counts (`active_models`)
     *   And more, as defined in `metrics.py`.
 
 This API reference should provide a solid foundation for developers integrating with Scout. 

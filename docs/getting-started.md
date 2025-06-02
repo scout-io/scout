@@ -15,7 +15,7 @@ Before you begin, ensure you have the following installed:
 1.  **Clone the Scout Repository:**
     Open your terminal or command prompt and navigate to the directory where you want to install Scout. Then, clone the official repository:
     ```bash
-    git clone https://github.com/scout-io/scout.git # TODO: Update with your actual repo URL
+    git clone https://github.com/scout-io/scout.git
     cd scout
     ```
 
@@ -91,6 +91,6 @@ Once you have cloned the repository and (optionally) configured your environment
 
 Now that Scout is running, you can proceed to:
 
-*   [Using the Scout UI](using-the-scout-ui.md) to create your first test.
+*   [Using the Scout UI](using-the-scout-ui.md) to create your first Test.
 *   Explore the [API Reference](api-reference.md) for programmatic control.
-*   Dive into [How Scout Works](how-scout-works.md) for a deeper understanding. 
+*   Dive into [Core Concepts](core-concepts.md) for a deeper understanding. 
