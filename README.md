@@ -1,8 +1,8 @@
 # Scout
 
-<div align="center"><img src="https://github.com/user-attachments/assets/191d481a-ba00-4a13-ba1a-32b2325ff51d" alt="Scout Logo" width="200"></div>
+<div align="center"><img src="https://github.com/user-attachments/assets/191d481a-ba00-4a13-ba1a-32b2325ff51d" alt="" width="200"></div>
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/scout-io/scout)[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)[![GitHub stars](https://img.shields.io/github/stars/scout-io/scout.svg?style=social)](https://github.com/scout-io/scout)[![Documentation](https://img.shields.io/badge/docs-GitBook-orange.svg)](https://scout-3.gitbook.io/scout-docs)
+&#x20;                                                   [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/scout-io/scout) [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md) [![GitHub stars](https://img.shields.io/github/stars/scout-io/scout.svg?style=social)](https://github.com/scout-io/scout) [![Documentation](https://img.shields.io/badge/docs-GitBook-orange.svg)](https://scout-3.gitbook.io/scout-docs)
 
 <div align="center"><img src="https://github.com/user-attachments/assets/b5a98742-cf7a-43de-abcd-a940228a8078" alt="Scout Dashboard Screenshot" width="700"></div>
 
