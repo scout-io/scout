@@ -49,7 +49,6 @@ from metrics import (
     model_predictions_total,
     model_updates_total,
     model_rewards_total,
-    model_reward_average,
     redis_operations_total,
     redis_operation_duration_seconds,
     active_models,
@@ -57,7 +56,7 @@ from metrics import (
     context_storage_operations,
     context_storage_size,
     get_metrics,
-    setup_multiprocess_metrics,
+    model_reward,
 )
 
 # ------------------------------------------------------------------------------
@@ -82,6 +81,30 @@ REDIS_LOCK_KEY_PREFIX = "scout:lock:model:"
 LOCK_EXPIRY_MS = 30000  # 30 seconds
 LOCK_RETRY_COUNT = 5
 LOCK_RETRY_DELAY_S = 0.2
+
+# Versioning & local cache
+REDIS_MODEL_VERSION_KEY_PREFIX = "scout:model_version:"
+
+# In-memory cache: model_id -> (model, version)
+MODEL_CACHE: Dict[str, Tuple["WrappedMAB", int]] = {}
+
+
+def get_model_version_key(model_id: str) -> str:
+    """Return Redis key that stores the version counter for a given model."""
+    return f"{REDIS_MODEL_VERSION_KEY_PREFIX}{model_id}"
+
+
+def _get_model_version_from_redis(model_id: str) -> int:
+    """Read current model version from Redis. Missing key -> 0."""
+    try:
+        val = redis_text_client.get(get_model_version_key(model_id))
+        if val is None:
+            return 0
+        # Redis client is configured with decode_responses=True so we expect a str
+        return int(cast(str, val))
+    except Exception:
+        return 0
+
 
 # Initialize Redis connection pools
 redis_text_pool = redis.ConnectionPool(
@@ -583,57 +606,61 @@ def get_lock_redis_key(model_id: str) -> str:
 
 
 def save_model_to_redis(model_id: str, model: WrappedMAB) -> None:
-    """Persist model to Redis using pickle serialization."""
-    start_time = time.time()
+    """Serialize model, bump its version and save to Redis + local cache."""
     try:
-        serialized_model = pickle.dumps(model)
-        redis_binary_client.set(get_model_redis_key(model_id), serialized_model)
-        redis_operations_total.labels(operation="save_model", status="success").inc()
+        data = pickle.dumps(model)
+
+        model_key = get_model_redis_key(model_id)
+        version_key = get_model_version_key(model_id)
+
+        # Increment version first; Redis returns the new value
+        new_version = cast(int, redis_text_client.incr(version_key))
+
+        # Save pickled blob
+        redis_binary_client.set(model_key, data)
+
+        # Update local cache
+        MODEL_CACHE[model_id] = (model, new_version)
     except Exception as e:
-        redis_operations_total.labels(operation="save_model", status="error").inc()
         print(f"Error saving model {model_id} to Redis: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Could not save model {model_id} to Redis."
-        )
-    finally:
-        duration = time.time() - start_time
-        redis_operation_duration_seconds.labels(operation="save_model").observe(
-            duration
-        )
 
 
-def load_model_from_redis(model_id: str) -> Optional[WrappedMAB]:
-    """Load model from Redis using pickle deserialization."""
-    start_time = time.time()
+def load_model_from_redis(
+    model_id: str, use_cache: bool = True
+) -> Optional[WrappedMAB]:
+    """Load model from Redis with optional local read-through cache."""
     try:
-        serialized_model = cast(
-            Optional[bytes], redis_binary_client.get(get_model_redis_key(model_id))
-        )
-        if serialized_model is not None:
-            redis_operations_total.labels(
-                operation="load_model", status="success"
-            ).inc()
-            return pickle.loads(serialized_model)
-        redis_operations_total.labels(operation="load_model", status="not_found").inc()
-        return None
+        version = _get_model_version_from_redis(model_id)
+
+        # Fast path – up-to-date cached copy
+        if use_cache and model_id in MODEL_CACHE:
+            cached_model, cached_version = MODEL_CACHE[model_id]
+            if cached_version == version:
+                return cached_model
+
+        # Fallback: pull full blob from Redis
+        data_raw = redis_binary_client.get(get_model_redis_key(model_id))
+        if data_raw is None:
+            return None
+        model = pickle.loads(cast(bytes, data_raw))
+
+        if use_cache:
+            MODEL_CACHE[model_id] = (model, version)
+
+        return model
     except Exception as e:
-        redis_operations_total.labels(operation="load_model", status="error").inc()
         print(f"Error loading model {model_id} from Redis: {e}")
         return None
-    finally:
-        duration = time.time() - start_time
-        redis_operation_duration_seconds.labels(operation="load_model").observe(
-            duration
-        )
 
 
 def delete_model_from_redis(model_id: str) -> bool:
-    """Delete model from Redis."""
+    """Delete model and version keys from Redis and local cache."""
     try:
-        deleted_count = cast(
-            int, redis_binary_client.delete(get_model_redis_key(model_id))
-        )
-        return deleted_count > 0
+        redis_binary_client.delete(get_model_redis_key(model_id))
+        redis_text_client.delete(get_model_version_key(model_id))
+
+        MODEL_CACHE.pop(model_id, None)
+        return True
     except Exception as e:
         print(f"Error deleting model {model_id} from Redis: {e}")
         return False
@@ -1242,7 +1269,7 @@ async def update_model(
             # Record metrics
             model_updates_total.labels(model_id=cb_model_id).inc()
             model_rewards_total.labels(model_id=cb_model_id).inc(reward)
-            model_reward_average.labels(model_id=cb_model_id).observe(reward)
+            model_reward.labels(model_id=cb_model_id).observe(reward)
             total_reward += reward
             processed_updates += 1
 
@@ -1264,8 +1291,7 @@ async def update_model(
             status_code=500, detail="Internal server error during model update."
         )
     finally:
-        if model:
-            release_lock(cb_model_id, lock_value)
+        release_lock(cb_model_id, lock_value)
 
 
 @app.post("/api/rollout_global_variant/{cb_model_id}")
@@ -1321,8 +1347,7 @@ async def rollout_global_variant(
                 detail="Failed to determine internal variant for rollout.",
             )
     finally:
-        if model:
-            release_lock(cb_model_id, lock_value)
+        release_lock(cb_model_id, lock_value)
 
 
 @app.post("/api/clear_global_variant/{cb_model_id}")
@@ -1349,8 +1374,7 @@ async def clear_global_variant(
 
         return {"message": f"Global variant cleared for model {cb_model_id}"}
     finally:
-        if model:
-            release_lock(cb_model_id, lock_value)
+        release_lock(cb_model_id, lock_value)
 
 
 # ------------------------------------------------------------------------------
@@ -1496,8 +1520,7 @@ async def fetch_recommended_variant(
             status_code=500, detail="Internal server error during variant fetch."
         )
     finally:
-        if model:
-            release_lock(cb_model_id, lock_value)
+        release_lock(cb_model_id, lock_value)
 
 
 # ------------------------------------------------------------------------------
@@ -1619,7 +1642,7 @@ async def stream_logs() -> StreamingResponse:
 @app.on_event("startup")
 async def startup_event():
     """Initialize metrics and check Redis connection on startup."""
-    setup_multiprocess_metrics()
+    # setup_multiprocess_metrics() is no longer needed.
 
     try:
         is_redis_healthy = RedisContextStorage.check_redis_health()
@@ -1636,9 +1659,12 @@ async def startup_event():
         print(f"ERROR connecting to Redis: {e}")
 
 
+# Restore metrics endpoint for per-backend scrape (used by aggregator)
+
+
 @app.get("/metrics")
-async def metrics():
-    """Prometheus metrics endpoint."""
+async def metrics_endpoint():
+    """Return Prometheus metrics for this backend instance."""
     return Response(
         content=get_metrics(),
         media_type="application/openmetrics-text; version=1.0.0; charset=utf-8",

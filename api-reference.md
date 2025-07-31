@@ -391,11 +391,11 @@ These endpoints are for creating, managing, and interacting with Tests.
 ### Get Prometheus Metrics
 
 *   **GET** `/metrics`
-*   **Description:** Exposes application and Test metrics in Prometheus format.
-*   **Response Type:** `text/plain; version=0.0.4; charset=utf-8`
-*   **Output:** Standard Prometheus metrics exposition format, including counters, gauges, histograms for things like:
+*   **Description:** Each backend worker exposes this endpoint to provide its application and Test metrics in the OpenMetrics format. In a multi-worker setup, a monitoring system like Prometheus should be configured to scrape each worker individually.
+*   **Response Type:** `application/openmetrics-text; version=1.0.0; charset=utf-8`
+*   **Output:** Standard Prometheus metrics exposition format, including:
     *   HTTP request counts and latencies (`http_requests_total`, `http_request_duration_seconds`)
-    *   Test predictions, updates, rewards (`model_predictions_total`, `model_updates_total`, `model_rewards_total`, `model_reward_average`)
+    *   Test predictions, updates, and rewards (`model_predictions_total`, `model_updates_total`, `model_rewards_total`, `model_reward` histogram)
     *   Redis operations (`redis_operations_total`, `redis_operation_duration_seconds`)
     *   Active Test counts (`active_models`)
     *   And more, as defined in `metrics.py`.

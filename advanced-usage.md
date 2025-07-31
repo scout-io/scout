@@ -42,7 +42,7 @@ Using context allows Scout to personalize decisions. The effectiveness of these 
 
 ## Monitoring Test Performance
 
-Scout provides several ways to monitor the performance of your Tests, both through its API (primarily the `/api/model_details/{cb_model_id}` endpoint) and by exposing metrics for systems like Prometheus (via the `/metrics` endpoint).
+Scout provides several ways to monitor the performance of your Tests, both through its API (primarily the `/api/model_details/{cb_model_id}` endpoint) and by exposing metrics that can be collected by a monitoring system like Prometheus.
 
 **Key Information from Model Details (API):**
 
@@ -66,19 +66,21 @@ The `/api/model_details/{cb_model_id}` endpoint provides a snapshot of a Test's 
 
 **Leveraging Prometheus Metrics:**
 
-If you have Prometheus integrated, Scout exposes a rich set of metrics via its `/metrics` endpoint, including:
+If you have Prometheus integrated, each Scout backend worker exposes a `/metrics` endpoint. With the default Docker Compose setup, Prometheus is configured to automatically discover and scrape each of these workers.
+
+Key metrics exposed include:
 
 *   **API Health:** `http_requests_total` (by method, endpoint, status code), `http_request_duration_seconds` (latency).
 *   **Test-Specific Metrics:**
-    *   `model_predictions_total{model_id, variant_id}`: Total predictions for each variant of each Test.
-    *   `model_updates_total{model_id, variant_id}`: Total reward updates for each variant.
-    *   `model_rewards_total{model_id, variant_id}`: Sum of rewards for each variant.
-    *   `model_reward_average{model_id, variant_id}`: A gauge representing the recent average reward for each variant.
+    *   `model_predictions_total{model_id, variant}`: Total predictions for each variant of each Test.
+    *   `model_updates_total{model_id}`: Total reward updates for a model.
+    *   `model_rewards_total{model_id}`: Sum of rewards for a model.
+    *   `model_reward` (a histogram): Distribution of rewards per model update.
 *   **System Metrics:** `active_models`, Redis operation counts, etc.
 
 **Using Prometheus for Enhanced Monitoring:**
 
-*   **Dashboards (e.g., with Grafana):** Visualize key metrics over time. Track API error rates, request latencies, average rewards per variant for important Tests, and the flow of predictions and updates.
+*   **Dashboards (e.g., with Grafana):** Visualize key metrics over time. Since Prometheus collects metrics from each worker, you can aggregate them in your dashboards (e.g., `sum(rate(http_requests_total[5m]))`) to see fleet-wide performance. Track API error rates, request latencies, average rewards per variant, and the flow of predictions and updates.
 *   **Alerting:** Configure alerts for critical conditions, such as:
     *   High API error rates or latency.
     *   No reward updates being received for an active Test for an extended period.

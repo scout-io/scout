@@ -4,14 +4,13 @@ services:
     build: ./backend
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # so Docker SDK can talk to host Docker
-      - scout_metrics:/tmp/scout_metrics # Add metrics volume
     expose:
       - "8000"
     environment:
+      # PROMETHEUS_MULTIPROC_DIR is now set in the Dockerfile.
       - REDIS_HOST=redis # Use service name as hostname
       - REDIS_PORT=6379
       - REDIS_CONTEXT_TTL=86400
-      - PROMETHEUS_MULTIPROC_DIR=/tmp/scout_metrics # Set metrics directory
     depends_on:
       - redis # Ensure Redis starts before the backend
     healthcheck:
@@ -35,6 +34,9 @@ services:
     depends_on:
       - backend
       - frontend
+
+  # The exporter service is no longer needed.
+  # Prometheus will scrape backends directly.
 
   redis:
     image: redis:alpine
@@ -64,7 +66,7 @@ services:
       - "9090:9090"
     depends_on:
       - backend
+# - exporter # No longer needed.
 
 volumes:
-  scout_metrics: # Define the metrics volume
   prometheus_data: # Prometheus data persistence

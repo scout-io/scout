@@ -1,15 +1,9 @@
-import os
-import tempfile
-import atexit
-import shutil
 import logging
 from prometheus_client import (
     Counter,
     Histogram,
     Gauge,
-    Summary,
     CollectorRegistry,
-    multiprocess,
 )
 from prometheus_client.openmetrics.exposition import generate_latest
 from typing import Dict, Any
@@ -18,64 +12,9 @@ from typing import Dict, Any
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Default metrics directory
-DEFAULT_METRICS_DIR = os.path.join(tempfile.gettempdir(), "scout_metrics")
-
-
-def setup_multiprocess_metrics():
-    """Initialize multiprocess metrics mode."""
-    try:
-        # Get metrics directory from environment or use default
-        metrics_dir = os.environ.get("PROMETHEUS_MULTIPROC_DIR", DEFAULT_METRICS_DIR)
-        logger.info(f"Using metrics directory: {metrics_dir}")
-
-        # Create directory if it doesn't exist
-        os.makedirs(metrics_dir, exist_ok=True)
-
-        # Ensure directory is writable
-        test_file = os.path.join(metrics_dir, ".test")
-        try:
-            with open(test_file, "w") as f:
-                f.write("test")
-            os.remove(test_file)
-        except (IOError, OSError) as e:
-            logger.error(f"Metrics directory {metrics_dir} is not writable: {e}")
-            raise RuntimeError(f"Metrics directory {metrics_dir} is not writable")
-
-        # Clean up any existing metrics files
-        for filename in os.listdir(metrics_dir):
-            if filename.endswith(".db"):
-                try:
-                    os.remove(os.path.join(metrics_dir, filename))
-                except OSError as e:
-                    logger.warning(f"Failed to remove old metrics file {filename}: {e}")
-
-        # Set the environment variable
-        os.environ["PROMETHEUS_MULTIPROC_DIR"] = metrics_dir
-        logger.info("Successfully initialized metrics directory")
-
-        # Register cleanup function
-        atexit.register(cleanup_metrics_dir, metrics_dir)
-
-    except Exception as e:
-        logger.error(f"Failed to initialize metrics: {e}")
-        raise
-
-
-def cleanup_metrics_dir(metrics_dir: str):
-    """Clean up metrics directory on process exit."""
-    try:
-        if os.path.exists(metrics_dir):
-            shutil.rmtree(metrics_dir)
-            logger.info(f"Cleaned up metrics directory: {metrics_dir}")
-    except Exception as e:
-        logger.warning(f"Failed to clean up metrics directory: {e}")
-
-
-# Create a multiprocess-safe registry
+# Create a standard, in-memory registry.
+# This is simpler and more reliable than multiprocess mode for single-worker applications.
 registry = CollectorRegistry()
-multiprocess.MultiProcessCollector(registry)
-
 
 # HTTP metrics
 http_requests_total = Counter(
@@ -114,11 +53,13 @@ model_rewards_total = Counter(
     registry=registry,
 )
 
-model_reward_average = Summary(
-    "model_reward_average",
-    "Average reward per model update",
+# Replaced Summary (not multiprocess-safe) with Histogram so data merges across workers
+model_reward = Histogram(
+    "model_reward",
+    "Reward distribution per model update",
     ["model_id"],
     registry=registry,
+    buckets=(0.5, 1, 1.5, 2, 3, 5),
 )
 
 # Redis metrics
@@ -168,3 +109,9 @@ def get_metrics() -> bytes:
     except Exception as e:
         logger.error(f"Failed to generate metrics: {e}")
         return b""  # Return empty bytes on error
+
+
+# No setup_multiprocess_metrics or cleanup functions are needed anymore.
+def setup_multiprocess_metrics():
+    """This function is no longer needed and can be removed."""
+    pass

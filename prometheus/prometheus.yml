@@ -3,7 +3,12 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'scout'
-    static_configs:
-      - targets: ['backend:8000']
+  - job_name: 'scout-backend'
+    # Docker's DNS service discovery will provide a list of IPs for the 'backend' service.
+    # Prometheus will scrape each of them individually.
+    dns_sd_configs:
+      - names:
+          - 'backend' # The service name defined in docker-compose.yml
+        type: 'A'
+        port: 8000
     metrics_path: '/metrics' 

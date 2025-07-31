@@ -7,6 +7,26 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 
 
+def create_model(base_url):
+    """
+    Creates a new contextual bandit model via the API.
+    Returns the model_id of the newly created model.
+    """
+    url = f"{base_url}/api/create_model"
+
+    # Configure the model for our simulation context
+    # Variants "a" and "b" mapped to integer keys as strings
+    payload = {
+        "name": f"test_simulation_model_{int(time.time())}",
+        "variants": {"0": "a", "1": "b"},
+    }
+
+    resp = requests.post(url, json=payload)
+    resp.raise_for_status()
+    response_data = resp.json()
+    return response_data["model_id"]
+
+
 def get_recommended_variant(base_url, model_id, context):
     """
     Makes a POST request to fetch the recommended variant given the context.
@@ -210,8 +230,12 @@ def plot_results(df):
 def main():
     # Configuration
     BASE_URL = "http://localhost"  # Updated default port to match Docker config
-    CB_MODEL_ID = "eae58fef-d38b-403b-9243-fc6830e74651"
-    N_ITERATIONS = 500  # How many times to run the simulation loop
+    N_ITERATIONS = 300  # How many times to run the simulation loop
+
+    # Create a new model for this simulation
+    print("Creating new contextual bandit model...")
+    CB_MODEL_ID = create_model(BASE_URL)
+    print(f"Created model with ID: {CB_MODEL_ID}")
 
     # Run the simulation
     print("\nStarting simulation...")

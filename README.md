@@ -51,7 +51,7 @@ Scout makes these advanced techniques accessible, providing the infrastructure a
   * Manage and monitor all your active tests.
   * View performance metrics and logs in real-time.
 * **Dockerized & Scalable**: Easy to deploy and manage using Docker. Built with FastAPI and Redis for performance.
-* **Prometheus Integration**: Export key metrics for monitoring and alerting.
+* **Prometheus Integration**: Key metrics are exposed for monitoring and alerting. Prometheus is configured to automatically discover and scrape each backend worker.
 
 ***
 
@@ -107,7 +107,7 @@ Once the containers are up and running:
 
 * **Scout API** will be available at `http://localhost:8000` (or your configured host/port).
 * **Scout UI** will be accessible at `http://localhost:3000` (served by Nginx, which proxies API requests to the backend).
-* **Prometheus** metrics will be available at `http://localhost:9090`.
+* **Prometheus** UI is available at `http://localhost:9090`. It is configured to automatically discover and scrape all backend containers for their metrics.
 * **Logs** can be viewed via `docker-compose logs -f` or through the Scout UI's log streaming feature.
 
 To stop the application:
