@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scout
+  labels:
+    app.kubernetes.io/name: scout
+    app.kubernetes.io/version: "1.0.0" 

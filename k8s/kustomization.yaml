@@ -1,0 +1,73 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: scout
+  annotations:
+    config.kubernetes.io/local-config: "true"
+
+# Namespace for all resources
+namespace: scout
+
+# Resources to deploy (in order)
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - redis.yaml
+  - backend.yaml
+  - frontend.yaml
+  - nginx-config.yaml
+  - nginx.yaml
+  - prometheus-config.yaml
+  - prometheus.yaml
+  - hpa.yaml
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: scout
+  app.kubernetes.io/version: "1.0.0"
+  app.kubernetes.io/managed-by: kustomize
+
+# Images (can be overridden)
+images:
+  - name: scout-backend
+    newTag: latest
+  - name: scout-frontend
+    newTag: latest
+
+# ConfigMap generator for additional config files
+# configMapGenerator:
+#   - name: additional-config
+#     files:
+#       - config.ini
+#     options:
+#       disableNameSuffixHash: true
+
+# Secret generator for additional secrets
+# secretGenerator:
+#   - name: additional-secrets
+#     literals:
+#       - password=changeme
+#     options:
+#       disableNameSuffixHash: true
+
+# Patches for environment-specific customizations
+# patchesStrategicMerge:
+#   - patches/production.yaml
+
+# JSON patches for specific modifications
+# patchesJson6902:
+#   - target:
+#       group: apps
+#       version: v1
+#       kind: Deployment
+#       name: scout-backend
+#     path: patches/backend-resources.yaml
+
+# Replica count overrides
+# replicas:
+#   - name: scout-backend
+#     count: 3
+#   - name: scout-frontend
+#     count: 2 

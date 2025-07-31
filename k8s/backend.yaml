@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scout-backend
+  namespace: scout
+  labels:
+    app.kubernetes.io/name: scout
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: scout
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: scout
+        app.kubernetes.io/component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: backend
+        image: scout-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        # Environment variables from ConfigMap
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: scout-config
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: scout-config
+              key: REDIS_PORT
+        - name: REDIS_CONTEXT_TTL
+          valueFrom:
+            configMapKeyRef:
+              name: scout-config
+              key: REDIS_CONTEXT_TTL
+        - name: SCOUT_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: scout-config
+              key: SCOUT_HOST
+        - name: SCOUT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: scout-config
+              key: SCOUT_PORT
+        - name: SCOUT_DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: scout-config
+              key: SCOUT_DEBUG
+        - name: SCOUT_REDIS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: scout-config
+              key: SCOUT_REDIS_ENABLED
+        - name: SCOUT_DISABLE_DOCKER_LOGS
+          valueFrom:
+            configMapKeyRef:
+              name: scout-config
+              key: SCOUT_DISABLE_DOCKER_LOGS
+        # Environment variables from Secret
+        - name: SCOUT_PROTECTED_API
+          valueFrom:
+            secretKeyRef:
+              name: scout-secrets
+              key: SCOUT_PROTECTED_API
+        - name: SCOUT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: scout-secrets
+              key: SCOUT_AUTH_TOKEN
+              optional: true
+        # Prometheus multiproc directory
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: "/tmp/prometheus_multiproc"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /docs
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /docs
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: prometheus-multiproc
+          mountPath: /tmp/prometheus_multiproc
+      volumes:
+      - name: prometheus-multiproc
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scout-backend
+  namespace: scout
+  labels:
+    app.kubernetes.io/name: scout
+    app.kubernetes.io/component: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+spec:
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+  selector:
+    app.kubernetes.io/name: scout
+    app.kubernetes.io/component: backend 

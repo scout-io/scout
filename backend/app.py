@@ -1533,6 +1533,13 @@ async def stream_logs() -> StreamingResponse:
     """Stream logs from backend service Docker containers."""
 
     async def log_generator() -> AsyncGenerator[str, None]:
+        # Check if Docker log streaming is disabled (e.g., in Kubernetes)
+        if os.getenv("SCOUT_DISABLE_DOCKER_LOGS", "false").lower() == "true":
+            yield "Docker log streaming is disabled in this environment.\n"
+            yield "This is typically the case when running in Kubernetes.\n"
+            yield "Use 'kubectl logs' to view container logs instead.\n"
+            return
+
         project_name = "scout"
         service_name = "backend"
 

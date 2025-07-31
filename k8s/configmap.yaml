@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scout-config
+  namespace: scout
+  labels:
+    app.kubernetes.io/name: scout
+    app.kubernetes.io/component: config
+data:
+  # Backend configuration
+  REDIS_HOST: "scout-redis"
+  REDIS_PORT: "6379"
+  REDIS_CONTEXT_TTL: "86400"
+  SCOUT_HOST: "0.0.0.0"
+  SCOUT_PORT: "8000"
+  SCOUT_DEBUG: "false"
+  SCOUT_REDIS_ENABLED: "true"
+  # Disable Docker log streaming in Kubernetes
+  SCOUT_DISABLE_DOCKER_LOGS: "true" 

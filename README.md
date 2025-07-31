@@ -51,6 +51,7 @@ Scout makes these advanced techniques accessible, providing the infrastructure a
   * Manage and monitor all your active tests.
   * View performance metrics and logs in real-time.
 * **Dockerized & Scalable**: Easy to deploy and manage using Docker. Built with FastAPI and Redis for performance.
+* **Kubernetes Ready**: Production-ready Kubernetes manifests with auto-scaling, monitoring, and persistent storage.
 * **Prometheus Integration**: Key metrics are exposed for monitoring and alerting. Prometheus is configured to automatically discover and scrape each backend worker.
 
 ***
@@ -95,6 +96,8 @@ The `docs` directory in this repository contains the source files for our GitBoo
 
 #### Running Scout
 
+**Local Development (Docker Compose):**
+
 Build and start the application using Docker Compose:
 
 ```bash
@@ -115,6 +118,23 @@ To stop the application:
 ```bash
 docker-compose down
 ```
+
+**Kubernetes Deployment:**
+
+For production deployment on Kubernetes:
+
+```bash
+# Build Docker images
+./k8s/build-images.sh
+
+# Deploy to Kubernetes
+./k8s/deploy.sh
+
+# Access via port-forward
+kubectl port-forward -n scout svc/scout-nginx 8080:80
+```
+
+See the [Kubernetes deployment guide](k8s/README.md) for detailed instructions, configuration options, and troubleshooting.
 
 ***
 
