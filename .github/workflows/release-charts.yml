@@ -40,4 +40,4 @@ jobs:
         with:
           config: .cr.yaml
           # Ensure chart-releaser updates the index.yaml file
-          packages-with-index: true
+          packages_with_index: true
