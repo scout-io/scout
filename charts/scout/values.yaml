@@ -114,6 +114,8 @@ nginx:
 redis:
   enabled: true
   replicas: 1
+  authEnabled: false
+  password: ""
   resources:
     requests:
       cpu: 50m
@@ -158,8 +160,9 @@ prometheus:
 # Authentication and security
 auth:
   protectedAPI: false
-  authToken: ""
-  # Generate with: openssl rand -base64 32
+  token: ""
+  tokenExpiration: 24
+  # Generate token with: openssl rand -base64 32
 
 # Service configuration
 service:
@@ -174,13 +177,28 @@ service:
 # Pod security and RBAC
 rbac:
   create: true
+  minimalPermissions: true
   prometheus:
     create: true
     clusterRole: true
 
+# Security configuration
+security:
+  # Network policies
+  networkPolicy:
+    enabled: false
+    allowExternalAccess: true
+  # Pod security standards
+  podSecurity:
+    enabled: true
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    dropAllCapabilities: true
+
 # Network policies
 networkPolicy:
   enabled: false
+  allowExternalAccess: true
   ingress:
     enabled: false
   egress:

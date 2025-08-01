@@ -53,6 +53,7 @@ Scout makes these advanced techniques accessible, providing the infrastructure a
 * **Dockerized & Scalable**: Easy to deploy and manage using Docker. Built with FastAPI and Redis for performance.
 * **Kubernetes Ready**: Production-ready Kubernetes manifests with auto-scaling, monitoring, and persistent storage.
 * **Helm Chart**: Professional Helm chart for easy deployment and customization across environments.
+* **Security Hardened**: Network policies, RBAC, pod security standards, and secrets management for production deployments.
 * **Prometheus Integration**: Key metrics are exposed for monitoring and alerting. Prometheus is configured to automatically discover and scrape each backend worker.
 
 ***
@@ -137,6 +138,8 @@ kubectl port-forward -n scout svc/scout-nginx 8080:80
 ```
 
 See the [Kubernetes deployment guide](k8s/README.md) and [Helm chart documentation](helm-chart/README.md) for detailed instructions, configuration options, and troubleshooting.
+
+**Security**: For production deployments, see our [Security Guide](SECURITY.md) for best practices including network policies, RBAC, and secrets management.
 
 ***
 
