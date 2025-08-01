@@ -34,7 +34,7 @@ jobs:
           version: v3.12.0
 
       - name: Run chart-releaser
-        uses: helm/chart-releaser@v1.6.0
+        uses: helm/chart-releaser@v1.5.0
         with:
           charts-repo-url: https://scout-io.github.io/scout
           charts-dir: helm-chart
