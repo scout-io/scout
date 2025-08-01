@@ -16,6 +16,7 @@ jobs:
       packages: write
       issues: write
       pull-requests: write
+      pages: write
 
     steps:
       - name: Checkout

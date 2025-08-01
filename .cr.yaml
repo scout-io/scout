@@ -6,3 +6,5 @@ pages-branch: main
 # Add configuration for chart-releaser to update index.yaml
 index-path: index.yaml
 packages-with-index: true
+# Configure GitHub Pages deployment
+pages-index-path: index.yaml
