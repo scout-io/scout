@@ -17,11 +17,11 @@ namespace:
 # Image configuration
 images:
   backend:
-    repository: scout-backend
+    repository: ghcr.io/scout-io/scout-backend
     tag: latest
     pullPolicy: IfNotPresent
   frontend:
-    repository: scout-frontend
+    repository: ghcr.io/scout-io/scout-frontend
     tag: latest
     pullPolicy: IfNotPresent
   nginx:
@@ -158,7 +158,7 @@ prometheus:
 # Authentication and security
 auth:
   protectedAPI: false
-  authToken: ""
+  token: ""
   # Generate with: openssl rand -base64 32
 
 # Service configuration

@@ -38,7 +38,7 @@ spec:
         fsGroup: 1000
       {{- end }}
       containers:
-              - name: backend
+      - name: backend
         image: {{ include "scout.image" (dict "repository" .Values.images.backend.repository "tag" .Values.images.backend.tag) }}
         imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
         {{- if .Values.security.podSecurity.enabled }}
