@@ -8,11 +8,14 @@ WORKDIR /app
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install system dependencies and Python packages (this layer is cached)
+# Install system dependencies and uv
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install uv
+
+# Install Python packages with uv (much faster than pip)
+RUN uv pip install --no-cache -r requirements.txt
 
 # Copy application code (this layer will be rebuilt when code changes)
 COPY . /app
