@@ -3,3 +3,6 @@ repo: scout
 charts-repo-url: https://scout-io.github.io/scout
 charts-dir: charts
 pages-branch: main
+# Add configuration for chart-releaser to update index.yaml
+index-path: index.yaml
+packages-with-index: true

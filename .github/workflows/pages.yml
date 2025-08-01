@@ -33,8 +33,7 @@ jobs:
         run: |
           mkdir -p docs
           cp -r helm-chart docs/
-          # Also copy the charts directory for the repository
-          cp -r charts docs/
+          # Don't copy charts directory - chart-releaser handles index.yaml separately
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
