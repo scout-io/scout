@@ -1,14 +1,11 @@
-name: Deploy Pages
+name: Deploy Index to GitHub Pages
 
 on:
   push:
+    paths:
+      - "index.yaml"
     branches:
       - main
-  workflow_run:
-    workflows:
-      - Release Charts
-    types:
-      - completed
 
 jobs:
   deploy:
@@ -23,17 +20,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Copy docs to pages
+      - name: Copy index.yaml to docs
         run: |
           mkdir -p docs
-          cp -r helm-chart docs/
-          # Copy index.yaml file for chart repository
           cp index.yaml docs/
 
       - name: Upload artifact
