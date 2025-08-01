@@ -1,6 +1,6 @@
 owner: scout-io
 repo: scout
-charts-repo-url: https://scout-io.github.io/scout
+charts-repo-url: https://github.com/scout-io/scout/releases/download
 charts-dir: charts
 pages-branch: main
 # Add configuration for chart-releaser to update index.yaml
