@@ -98,6 +98,10 @@ spec:
       imagePullSecrets:
         {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
       {{- end }}
+      {{- if .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      {{- end }}
       containers:
       - name: prometheus
         image: {{ include "scout.image" (dict "repository" .Values.images.prometheus.repository "tag" .Values.images.prometheus.tag) }}

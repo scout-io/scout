@@ -30,6 +30,10 @@ spec:
       imagePullSecrets:
         {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
       {{- end }}
+      {{- if .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      {{- end }}
       {{- if .Values.security.podSecurity.enabled }}
       securityContext:
         runAsNonRoot: {{ .Values.security.podSecurity.runAsNonRoot }}

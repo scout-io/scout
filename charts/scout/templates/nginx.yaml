@@ -23,6 +23,10 @@ spec:
       imagePullSecrets:
         {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
       {{- end }}
+      {{- if .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      {{- end }}
       containers:
       - name: nginx
         image: {{ include "scout.image" (dict "repository" .Values.images.nginx.repository "tag" .Values.images.nginx.tag) }}

@@ -39,6 +39,10 @@ spec:
         {{- include "scout.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: redis
     spec:
+      {{- if .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      {{- end }}
       containers:
       - name: redis
         image: {{ include "scout.image" (dict "repository" .Values.images.redis.repository "tag" .Values.images.redis.tag) }}

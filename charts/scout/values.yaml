@@ -7,6 +7,9 @@ global:
   imagePullSecrets: []
   nameOverride: ""
   fullnameOverride: ""
+  # Node selector for architecture-specific deployments
+  nodeSelector:
+    kubernetes.io/arch: arm64
 
 # Scout namespace configuration
 namespace:
