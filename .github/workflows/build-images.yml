@@ -63,3 +63,10 @@ jobs:
             ${{ env.REGISTRY }}/scout-io/scout-frontend:${{ steps.meta.outputs.version }}
             ${{ env.REGISTRY }}/scout-io/scout-frontend:latest
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Make packages public
+        run: |
+          gh api --method PUT /orgs/scout-io/packages/container/scout-backend/visibility -f visibility=public
+          gh api --method PUT /orgs/scout-io/packages/container/scout-frontend/visibility -f visibility=public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
