@@ -65,14 +65,9 @@ Create the name of the service account to use
 Image name helper
 */}}
 {{- define "scout.image" -}}
-{{- $registry := .Values.global.imageRegistry | default .Values.global.defaultImageRegistry -}}
 {{- $repository := .repository -}}
 {{- $tag := .tag | default "latest" -}}
-{{- if and $registry (ne $registry "") -}}
-{{- printf "%s/%s:%s" $registry $repository $tag -}}
-{{- else -}}
 {{- printf "%s:%s" $repository $tag -}}
-{{- end -}}
 {{- end -}}
 
 {{/*

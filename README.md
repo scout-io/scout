@@ -141,6 +141,8 @@ See the [Kubernetes deployment guide](k8s/README.md) and [Helm chart documentati
 
 **Security**: For production deployments, see our [Security Guide](SECURITY.md) for best practices including network policies, RBAC, and secrets management.
 
+**Deployment**: See our [Deployment Guide](DEPLOYMENT.md) for detailed instructions and troubleshooting.
+
 ***
 
 ### Quick Example

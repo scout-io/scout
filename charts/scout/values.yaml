@@ -4,12 +4,9 @@
 # Global settings
 global:
   environment: production
-  imageRegistry: ""
   imagePullSecrets: []
   nameOverride: ""
   fullnameOverride: ""
-  # Default image repositories (used when imageRegistry is empty)
-  defaultImageRegistry: "ghcr.io"
 
 # Scout namespace configuration
 namespace:
@@ -19,11 +16,11 @@ namespace:
 # Image configuration
 images:
   backend:
-    repository: scout-io/scout-backend
+    repository: ghcr.io/scout-io/scout-backend
     tag: latest
     pullPolicy: IfNotPresent
   frontend:
-    repository: scout-io/scout-frontend
+    repository: ghcr.io/scout-io/scout-frontend
     tag: latest
     pullPolicy: IfNotPresent
   nginx:

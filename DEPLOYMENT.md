@@ -2,35 +2,15 @@
 
 This guide covers different deployment options for Scout, from simple local deployment to production-ready setups.
 
-## 🚀 Quick Start (Recommended)
-
-### Option 1: GitHub Container Registry (Default)
+## 🚀 Quick Start
 
 ```bash
 # Add the Helm repository
 helm repo add scout https://scout-io.github.io/scout
 helm repo update
 
-# Install Scout (uses GitHub Container Registry by default)
+# Install Scout
 helm install scout scout/scout --namespace scout --create-namespace
-```
-
-### Option 2: Docker Hub
-
-```bash
-# Install with Docker Hub images
-helm install scout scout/scout --namespace scout --create-namespace \
-  --set global.imageRegistry=docker.io
-```
-
-### Option 3: Google Container Registry
-
-```bash
-# Install with GCR images
-helm install scout scout/scout --namespace scout --create-namespace \
-  --set global.imageRegistry=gcr.io \
-  --set images.backend.repository=YOUR_PROJECT/scout-backend \
-  --set images.frontend.repository=YOUR_PROJECT/scout-frontend
 ```
 
 ## 🔧 Advanced Deployment Options
@@ -66,27 +46,14 @@ helm install scout-dev scout/scout --namespace scout-dev --create-namespace \
   --set frontend.resources.requests.memory=64Mi
 ```
 
-## 🏗️ Image Registry Options
+## 🏗️ Image Registry
 
-### GitHub Container Registry (ghcr.io) - Default
-- **Pros**: Free, integrated with GitHub, automatic builds
-- **Cons**: Rate limits for anonymous pulls
-- **Best for**: Open source projects, GitHub users
+Scout uses **GitHub Container Registry (ghcr.io)** for its Docker images:
 
-### Docker Hub (docker.io)
-- **Pros**: Widely supported, good documentation
-- **Cons**: Rate limits, requires account
-- **Best for**: General use, Docker ecosystem
-
-### Google Container Registry (gcr.io)
-- **Pros**: Fast, integrated with GKE
-- **Cons**: Requires Google Cloud account
-- **Best for**: GKE deployments, Google Cloud users
-
-### Custom Registry
-- **Pros**: Full control, no rate limits
-- **Cons**: Requires infrastructure
-- **Best for**: Enterprise deployments
+- **Free** for public repositories
+- **Integrated** with GitHub Actions for automated builds
+- **No rate limits** for public images
+- **Simple** deployment process
 
 ## 📋 Deployment Checklist
 
@@ -121,9 +88,6 @@ docker pull ghcr.io/scout-io/scout-frontend:latest
 
 # Check pod events
 kubectl describe pod -n scout -l app.kubernetes.io/component=backend
-
-# Check image pull secrets
-kubectl get secrets -n scout
 ```
 
 ### Network Issues
@@ -243,10 +207,6 @@ kubectl delete namespace scout
 ```bash
 # Remove local images
 docker rmi scout-backend:latest scout-frontend:latest
-
-# Remove from registry (if you have access)
-docker rmi ghcr.io/scout-io/scout-backend:latest
-docker rmi ghcr.io/scout-io/scout-frontend:latest
 ```
 
 ## 📚 Additional Resources
