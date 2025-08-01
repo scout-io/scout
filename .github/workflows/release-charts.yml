@@ -40,3 +40,4 @@ jobs:
         with:
           charts_repo_url: https://scout-io.github.io/scout
           charts_dir: charts
+          pages_branch: main
