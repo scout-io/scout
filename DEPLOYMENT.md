@@ -5,12 +5,8 @@ This guide covers different deployment options for Scout, from simple local depl
 ## 🚀 Quick Start
 
 ```bash
-# Add the Helm repository
-helm repo add scout https://scout-io.github.io/scout
-helm repo update
-
-# Install Scout
-helm install scout scout/scout --namespace scout --create-namespace
+# Deploy Scout using Kubernetes manifests
+kubectl apply -f k8s/
 ```
 
 ## 🔧 Advanced Deployment Options
@@ -22,28 +18,17 @@ helm install scout scout/scout --namespace scout --create-namespace
 API_TOKEN=$(openssl rand -base64 32)
 REDIS_PASSWORD=$(openssl rand -base64 32)
 
-# Install with all security features
-helm install scout scout/scout --namespace scout --create-namespace \
-  --set security.networkPolicy.enabled=true \
-  --set security.podSecurity.enabled=true \
-  --set rbac.create=true \
-  --set auth.token="$API_TOKEN" \
-  --set redis.authEnabled=true \
-  --set redis.password="$REDIS_PASSWORD" \
-  --set backend.replicas=3 \
-  --set frontend.replicas=2
+# Deploy with all security features
+kubectl apply -f k8s/security/
+kubectl apply -f k8s/
 ```
 
 ### Development Deployment
 
 ```bash
-# Install with minimal resources for development
-helm install scout-dev scout/scout --namespace scout-dev --create-namespace \
-  --set backend.replicas=1 \
-  --set frontend.replicas=1 \
-  --set prometheus.enabled=false \
-  --set backend.resources.requests.memory=128Mi \
-  --set frontend.resources.requests.memory=64Mi
+# Deploy with minimal resources for development
+kubectl create namespace scout-dev
+kubectl apply -f k8s/ --namespace scout-dev
 ```
 
 ## 🏗️ Image Registry
@@ -59,7 +44,7 @@ Scout uses **GitHub Container Registry (ghcr.io)** for its Docker images:
 
 ### Pre-deployment
 - [ ] **Kubernetes cluster** running
-- [ ] **Helm** installed
+- [ ] **kubectl** configured
 - [ ] **kubectl** configured
 - [ ] **Image registry** chosen
 - [ ] **Namespace** created (optional)
@@ -142,9 +127,7 @@ kubectl get service scout-nginx -n scout
 
 ```bash
 # Install with Ingress
-helm install scout scout/scout --namespace scout --create-namespace \
-  --set nginx.ingress.enabled=true \
-  --set nginx.ingress.hosts[0].host=scout.yourdomain.com
+kubectl apply -f k8s/ingress/
 ```
 
 ## 📊 Monitoring
@@ -171,23 +154,19 @@ kubectl logs -n scout deployment/scout-frontend -f
 
 ## 🔄 Upgrading
 
-### Helm Chart Upgrade
+### Kubernetes Deployment Upgrade
 
 ```bash
-# Update repository
-helm repo update
-
-# Upgrade deployment
-helm upgrade scout scout/scout --namespace scout
+# Update deployment
+kubectl apply -f k8s/
 ```
 
 ### Image Update
 
 ```bash
 # Update to specific image tag
-helm upgrade scout scout/scout --namespace scout \
-  --set images.backend.tag=v1.2.0 \
-  --set images.frontend.tag=v1.2.0
+kubectl set image deployment/scout-backend scout-backend=ghcr.io/scout-io/scout-backend:v1.2.0 -n scout
+kubectl set image deployment/scout-frontend scout-frontend=ghcr.io/scout-io/scout-frontend:v1.2.0 -n scout
 ```
 
 ## 🧹 Cleanup
@@ -196,7 +175,7 @@ helm upgrade scout scout/scout --namespace scout \
 
 ```bash
 # Uninstall Scout
-helm uninstall scout -n scout
+kubectl delete -f k8s/
 
 # Delete namespace
 kubectl delete namespace scout
@@ -213,5 +192,5 @@ docker rmi scout-backend:latest scout-frontend:latest
 
 - [Security Guide](SECURITY.md) - Production security best practices
 - [Kubernetes Documentation](https://kubernetes.io/docs/) - Kubernetes concepts
-- [Helm Documentation](https://helm.sh/docs/) - Helm usage guide
+- [Kubernetes Documentation](https://kubernetes.io/docs/) - Kubernetes concepts
 - [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) - Image registry documentation 

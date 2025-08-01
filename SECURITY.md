@@ -36,13 +36,8 @@ All Scout containers follow security best practices:
 
 ```bash
 # Enable all security features
-helm install scout charts/scout --namespace scout --create-namespace \
-  --set security.networkPolicy.enabled=true \
-  --set security.podSecurity.enabled=true \
-  --set rbac.create=true \
-  --set auth.token="your-secure-token" \
-  --set redis.authEnabled=true \
-  --set redis.password="your-redis-password"
+kubectl apply -f k8s/security/
+kubectl apply -f k8s/
 ```
 
 ### Generate Secure Tokens
