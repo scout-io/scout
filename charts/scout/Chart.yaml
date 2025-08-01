@@ -2,7 +2,7 @@ apiVersion: v2
 name: scout
 description: A Helm chart for Scout - Self-optimizing AB testing tool
 type: application
-version: 1.1.2
+version: 1.1.3
 appVersion: "1.0.0"
 keywords:
   - ab-testing
