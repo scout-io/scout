@@ -33,7 +33,6 @@ jobs:
         run: |
           mkdir -p docs
           cp -r helm-chart docs/
-          cp docs/index.html docs/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
