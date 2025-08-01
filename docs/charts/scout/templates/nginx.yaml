@@ -1,0 +1,112 @@
+{{- if .Values.nginx.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "scout.fullname" . }}-nginx
+  namespace: {{ include "scout.namespace" . }}
+  labels:
+    {{- include "scout.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nginx
+spec:
+  replicas: {{ .Values.nginx.replicas }}
+  selector:
+    matchLabels:
+      {{- include "scout.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: nginx
+  template:
+    metadata:
+      labels:
+        {{- include "scout.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: nginx
+    spec:
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: nginx
+        image: {{ include "scout.image" (dict "repository" .Values.images.nginx.repository "tag" .Values.images.nginx.tag) }}
+        imagePullPolicy: {{ .Values.images.nginx.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.ports.nginx }}
+          name: http
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+        resources:
+          {{- toYaml .Values.nginx.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /nginx-health
+            port: {{ .Values.service.ports.nginx }}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /nginx-health
+            port: {{ .Values.service.ports.nginx }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: {{ include "scout.fullname" . }}-nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "scout.nginx.serviceName" . }}
+  namespace: {{ include "scout.namespace" . }}
+  labels:
+    {{- include "scout.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nginx
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+  - port: {{ .Values.service.ports.nginx }}
+    targetPort: {{ .Values.service.ports.nginx }}
+    name: http
+  selector:
+    {{- include "scout.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: nginx
+{{- if .Values.nginx.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "scout.fullname" . }}-ingress
+  namespace: {{ include "scout.namespace" . }}
+  labels:
+    {{- include "scout.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ingress
+  annotations:
+    {{- toYaml .Values.nginx.ingress.annotations | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.nginx.ingress.className }}
+  rules:
+  {{- range .Values.nginx.ingress.hosts }}
+  - host: {{ .host | quote }}
+    http:
+      paths:
+      {{- range .paths }}
+      - path: {{ .path }}
+        pathType: {{ .pathType }}
+        backend:
+          service:
+            name: {{ include "scout.nginx.serviceName" $ }}
+            port:
+              number: {{ $.Values.service.ports.nginx }}
+      {{- end }}
+  {{- end }}
+  {{- if .Values.nginx.ingress.tls }}
+  tls:
+  {{- range .Values.nginx.ingress.tls }}
+  - hosts:
+    {{- range .hosts }}
+    - {{ . | quote }}
+    {{- end }}
+    secretName: {{ .secretName }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }} 

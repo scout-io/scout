@@ -1,0 +1,139 @@
+{{- if .Values.backend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "scout.fullname" . }}-backend
+  namespace: {{ include "scout.namespace" . }}
+  labels:
+    {{- include "scout.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "scout.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "scout.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.service.ports.backend | quote }}
+        prometheus.io/path: "/metrics"
+    spec:
+      {{- if .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: backend
+        image: {{ include "scout.image" (dict "repository" .Values.images.backend.repository "tag" .Values.images.backend.tag) }}
+        imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.ports.backend }}
+          name: http
+        env:
+        # Environment variables from ConfigMap
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "scout.fullname" . }}-config
+              key: REDIS_HOST
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "scout.fullname" . }}-config
+              key: REDIS_PORT
+        - name: REDIS_CONTEXT_TTL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "scout.fullname" . }}-config
+              key: REDIS_CONTEXT_TTL
+        - name: SCOUT_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "scout.fullname" . }}-config
+              key: SCOUT_HOST
+        - name: SCOUT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "scout.fullname" . }}-config
+              key: SCOUT_PORT
+        - name: SCOUT_DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "scout.fullname" . }}-config
+              key: SCOUT_DEBUG
+        - name: SCOUT_REDIS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "scout.fullname" . }}-config
+              key: SCOUT_REDIS_ENABLED
+        - name: SCOUT_DISABLE_DOCKER_LOGS
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "scout.fullname" . }}-config
+              key: SCOUT_DISABLE_DOCKER_LOGS
+        # Environment variables from Secret
+        - name: SCOUT_PROTECTED_API
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "scout.fullname" . }}-secrets
+              key: SCOUT_PROTECTED_API
+        - name: SCOUT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "scout.fullname" . }}-secrets
+              key: SCOUT_AUTH_TOKEN
+              optional: true
+        # Prometheus multiproc directory
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: "/tmp/prometheus_multiproc"
+        resources:
+          {{- toYaml .Values.backend.resources | nindent 10 }}
+        {{- if .Values.backend.healthCheck.enabled }}
+        livenessProbe:
+          httpGet:
+            path: /docs
+            port: {{ .Values.service.ports.backend }}
+          initialDelaySeconds: {{ .Values.backend.healthCheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.backend.healthCheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.backend.healthCheck.timeoutSeconds }}
+        readinessProbe:
+          httpGet:
+            path: /docs
+            port: {{ .Values.service.ports.backend }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+        {{- end }}
+        volumeMounts:
+        - name: prometheus-multiproc
+          mountPath: /tmp/prometheus_multiproc
+      volumes:
+      - name: prometheus-multiproc
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "scout.backend.serviceName" . }}
+  namespace: {{ include "scout.namespace" . }}
+  labels:
+    {{- include "scout.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: {{ .Values.service.ports.backend | quote }}
+    prometheus.io/path: "/metrics"
+spec:
+  ports:
+  - port: {{ .Values.service.ports.backend }}
+    targetPort: {{ .Values.service.ports.backend }}
+    name: http
+  selector:
+    {{- include "scout.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+{{- end }} 
