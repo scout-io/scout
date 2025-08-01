@@ -59,6 +59,14 @@ echo "✅ Updated $CHART_FILE to version $NEW_VERSION"
 echo "📝 Committing version bump..."
 git add "$CHART_FILE"
 git commit -m "chore: bump chart version to $NEW_VERSION"
+
+# Check if we need to pull first (Chart Releaser might have updated index.yaml)
+echo "🔄 Checking for remote changes..."
+if git fetch origin main && git rev-list HEAD..origin/main --oneline | grep -q .; then
+    echo "⚠️  Remote has changes, pulling first..."
+    git pull origin main --no-edit
+fi
+
 git push origin main
 
 echo "🚀 Pushed version bump to main branch"
