@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scout Helm Charts</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .chart-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .install-command {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .feature-list li:before {
+            content: "✅ ";
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🚀 Scout Helm Charts</h1>
+        <p>Self-optimizing AB testing tool for Kubernetes</p>
+    </div>
+
+    <div class="chart-info">
+        <h2>📦 Installation</h2>
+        <p>Add the repository and install Scout:</p>
+        <div class="install-command">
+            helm repo add scout https://scout-io.github.io/scout<br>
+            helm repo update<br>
+            helm install scout scout/scout
+        </div>
+    </div>
+
+    <div class="chart-info">
+        <h2>✨ Features</h2>
+        <ul class="feature-list">
+            <li>Multi-armed bandit optimization</li>
+            <li>Real-time metrics and monitoring</li>
+            <li>Auto-scaling with HPA</li>
+            <li>Persistent storage for Redis and Prometheus</li>
+            <li>Production-ready with health checks</li>
+            <li>Easy customization via values.yaml</li>
+        </ul>
+    </div>
+
+    <div class="chart-info">
+        <h2>🔧 Quick Start</h2>
+        <p>For local development:</p>
+        <div class="install-command">
+            helm install scout-dev scout/scout \<br>
+            &nbsp;&nbsp;--set backend.replicas=1 \<br>
+            &nbsp;&nbsp;--set frontend.replicas=1 \<br>
+            &nbsp;&nbsp;--set prometheus.enabled=false
+        </div>
+
+        <p>For production:</p>
+        <div class="install-command">
+            helm install scout-prod scout/scout \<br>
+            &nbsp;&nbsp;--set backend.replicas=3 \<br>
+            &nbsp;&nbsp;--set auth.protectedAPI=true \<br>
+            &nbsp;&nbsp;--set redis.persistence.size=10Gi
+        </div>
+    </div>
+
+    <div class="chart-info">
+        <h2>📚 Documentation</h2>
+        <p>For detailed documentation and configuration options, visit:</p>
+        <p><a href="https://github.com/scout-io/scout">https://github.com/scout-io/scout</a></p>
+    </div>
+
+    <div class="chart-info">
+        <h2>🤝 Contributing</h2>
+        <p>Contributions are welcome! Please feel free to submit a Pull Request.</p>
+    </div>
+</body>
+
+</html>

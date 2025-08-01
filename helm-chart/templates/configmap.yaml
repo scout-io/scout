@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "scout.fullname" . }}-config
+  namespace: {{ include "scout.namespace" . }}
+  labels:
+    {{- include "scout.labels" . | nindent 4 }}
+    app.kubernetes.io/component: config
+data:
+  # Backend configuration
+  REDIS_HOST: {{ include "scout.redis.host" . | quote }}
+  REDIS_PORT: {{ .Values.redis.config.port | quote }}
+  REDIS_CONTEXT_TTL: {{ .Values.redis.config.contextTTL | quote }}
+  SCOUT_HOST: {{ .Values.backend.config.host | quote }}
+  SCOUT_PORT: {{ .Values.backend.config.port | quote }}
+  SCOUT_DEBUG: {{ .Values.backend.config.debug | quote }}
+  SCOUT_REDIS_ENABLED: {{ .Values.backend.config.redisEnabled | quote }}
+  # Disable Docker log streaming in Kubernetes
+  SCOUT_DISABLE_DOCKER_LOGS: {{ .Values.backend.config.disableDockerLogs | quote }} 
