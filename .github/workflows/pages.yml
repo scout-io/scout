@@ -9,6 +9,7 @@ on:
       - Release Charts
     types:
       - completed
+  workflow_dispatch:
 
 jobs:
   deploy:
