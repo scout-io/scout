@@ -408,3 +408,4 @@ When contributing to the Helm chart:
 ## 📄 License
 
 This Helm chart is licensed under the MIT License. # Updated
+# Trigger chart release
