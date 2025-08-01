@@ -33,6 +33,8 @@ jobs:
         run: |
           mkdir -p docs
           cp -r helm-chart docs/
+          # Also copy the charts directory for the repository
+          cp -r charts docs/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

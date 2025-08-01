@@ -1,0 +1,5 @@
+owner: scout-io
+repo: scout
+charts-repo-url: https://scout-io.github.io/scout
+charts-dir: charts
+pages-branch: main
