@@ -5,17 +5,16 @@ FROM python:3.12.2-slim
 # Create working directory
 WORKDIR /app
 
-# The PROMETHEUS_MULTIPROC_DIR is no longer needed for in-memory metrics.
-
-# Copy requirements and install
+# Copy requirements first for better caching
 COPY requirements.txt .
-# Install curl for health-check and other diagnostic uses
+
+# Install system dependencies and Python packages (this layer is cached)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy your FastAPI code into the container
+# Copy application code (this layer will be rebuilt when code changes)
 COPY . /app
 
 # Expose port 8000 within Docker
