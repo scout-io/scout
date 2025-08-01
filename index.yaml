@@ -7,6 +7,32 @@ entries:
       vendor: Scout
     apiVersion: v2
     appVersion: 1.0.0
+    created: "2025-08-01T22:04:50.061734448Z"
+    description: A Helm chart for Scout - Self-optimizing AB testing tool
+    digest: 9645bb443d40d1312ad8ca7c792a52c8cfae3107cae6935971474754b7299c05
+    home: https://github.com/scout-io/scout
+    icon: https://github.com/scout-io/scout/raw/main/logo.png
+    keywords:
+    - ab-testing
+    - multi-armed-bandit
+    - optimization
+    - machine-learning
+    maintainers:
+    - email: team@scout.io
+      name: Scout Team
+    name: scout
+    sources:
+    - https://github.com/scout-io/scout
+    type: application
+    urls:
+    - scout-1.1.4.tgz
+    version: 1.1.4
+  - annotations:
+      category: Application
+      licenses: MIT
+      vendor: Scout
+    apiVersion: v2
+    appVersion: 1.0.0
     created: "2025-08-01T17:41:42.303046031Z"
     description: A Helm chart for Scout - Self-optimizing AB testing tool
     digest: dd4d5a3df20b41a2ca0e104360faaa88535e4d1c6e989eaad962663444fee475
@@ -79,4 +105,4 @@ entries:
     urls:
     - https://github.com/scout-io/scout/releases/download/scout-1.1.0/scout-1.1.0.tgz
     version: 1.1.0
-generated: "2025-08-01T17:41:42.303063715Z"
+generated: "2025-08-01T22:04:50.061753043Z"
