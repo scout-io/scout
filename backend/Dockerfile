@@ -15,7 +15,7 @@ RUN apt-get update \
     && pip install uv
 
 # Install Python packages with uv (much faster than pip)
-RUN uv pip install --no-cache -r requirements.txt
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Copy application code (this layer will be rebuilt when code changes)
 COPY . /app
