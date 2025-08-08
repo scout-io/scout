@@ -19,6 +19,12 @@ jobs:
       - name: Install yq
         uses: mikefarah/yq@v4.44.3
 
+      - name: Add Helm repos and build dependencies
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+          helm dependency update charts/scout
+
       - name: Compute metadata
         id: meta
         run: |
