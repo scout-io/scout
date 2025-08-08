@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "scout.backend.fullname" . }}
+  labels:
+    {{- include "scout.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "scout.name" . }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "scout.name" . }}
+        app.kubernetes.io/component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "scout.fullname" . }}-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "scout.fullname" . }}-config
+                  key: REDIS_PORT
+            - name: REDIS_CONTEXT_TTL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "scout.fullname" . }}-config
+                  key: REDIS_CONTEXT_TTL
+            - name: SCOUT_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "scout.fullname" . }}-config
+                  key: SCOUT_HOST
+            - name: SCOUT_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "scout.fullname" . }}-config
+                  key: SCOUT_PORT
+            - name: SCOUT_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "scout.fullname" . }}-config
+                  key: SCOUT_DEBUG
+            - name: SCOUT_REDIS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "scout.fullname" . }}-config
+                  key: SCOUT_REDIS_ENABLED
+            - name: SCOUT_DISABLE_DOCKER_LOGS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "scout.fullname" . }}-config
+                  key: SCOUT_DISABLE_DOCKER_LOGS
+            - name: SCOUT_PROTECTED_API
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "scout.fullname" . }}-secrets
+                  key: SCOUT_PROTECTED_API
+            - name: SCOUT_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "scout.fullname" . }}-secrets
+                  key: SCOUT_AUTH_TOKEN
+                  optional: true
+            - name: PROMETHEUS_MULTIPROC_DIR
+              value: "/tmp/prometheus_multiproc"
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: prometheus-multiproc
+              mountPath: /tmp/prometheus_multiproc
+      volumes:
+        - name: prometheus-multiproc
+          emptyDir: {}
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "scout.backend.fullname" . }}
+  labels:
+    {{- include "scout.labels" . | nindent 4 }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+spec:
+  ports:
+    - port: {{ .Values.backend.service.port }}
+      targetPort: 8000
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ include "scout.name" . }}
+    app.kubernetes.io/component: backend
+

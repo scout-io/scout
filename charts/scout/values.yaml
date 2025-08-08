@@ -1,0 +1,137 @@
+global:
+  imagePullSecrets: []
+  labels: {}
+  annotations: {}
+
+backend:
+  image:
+    repository: ghcr.io/REPLACE_ME_OWNER/scout-backend
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    REDIS_HOST: ""
+    REDIS_PORT: "6379"
+    REDIS_CONTEXT_TTL: "86400"
+    SCOUT_HOST: "0.0.0.0"
+    SCOUT_PORT: "8000"
+    SCOUT_DEBUG: "false"
+    SCOUT_REDIS_ENABLED: "true"
+    SCOUT_DISABLE_DOCKER_LOGS: "true"
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    cpu:
+      averageUtilization: 70
+    memory:
+      averageUtilization: 80
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+frontend:
+  image:
+    repository: ghcr.io/REPLACE_ME_OWNER/scout-frontend
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  hpa:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    cpu:
+      averageUtilization: 70
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+nginx:
+  image:
+    repository: nginx
+    tag: alpine
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: scout.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: ""
+
+externalRedis:
+  enabled: false
+  host: ""
+  port: 6379
+
+prometheus:
+  enabled: false
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  serviceMonitor:
+    enabled: false
+
+security:
+  protectedApi: false
+  authToken: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""

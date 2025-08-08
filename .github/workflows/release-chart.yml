@@ -1,0 +1,60 @@
+name: release-chart
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install yq
+        uses: mikefarah/yq@v4.44.3
+
+      - name: Compute metadata
+        id: meta
+        run: |
+          VER=${GITHUB_REF_NAME#v}
+          echo "ver=$VER" >> $GITHUB_OUTPUT
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner=$OWNER_LOWER" >> $GITHUB_OUTPUT
+
+      - name: Bump chart and default images
+        run: |
+          yq -i '.appVersion = "${{ steps.meta.outputs.ver }}"' charts/scout/Chart.yaml
+          yq -i '.version = "${{ steps.meta.outputs.ver }}"' charts/scout/Chart.yaml
+          yq -i '.backend.image.repository = "ghcr.io/${{ steps.meta.outputs.owner }}/scout-backend"' charts/scout/values.yaml
+          yq -i '.backend.image.tag = "v${{ steps.meta.outputs.ver }}"' charts/scout/values.yaml
+          yq -i '.frontend.image.repository = "ghcr.io/${{ steps.meta.outputs.owner }}/scout-frontend"' charts/scout/values.yaml
+          yq -i '.frontend.image.tag = "v${{ steps.meta.outputs.ver }}"' charts/scout/values.yaml
+
+      - name: Lint
+        run: helm lint charts/scout | tee /dev/stderr
+
+      - name: Package chart
+        run: |
+          mkdir -p dist
+          helm package charts/scout --destination dist
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tgz
+
+      - name: Login to GHCR for OCI
+        run: echo ${{ secrets.GITHUB_TOKEN }} | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push chart to GHCR OCI
+        run: |
+          CHART_TGZ=$(ls dist/scout-*.tgz | head -n1)
+          helm push "$CHART_TGZ" oci://ghcr.io/${{ steps.meta.outputs.owner }}/charts
+
+

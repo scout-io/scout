@@ -1,0 +1,28 @@
+apiVersion: v2
+name: scout
+description: Scout - Self-optimizing AB testing tool
+type: application
+
+# Chart version (updated by CI on release)
+version: 0.1.0
+
+# Application version (updated by CI on release)
+appVersion: "1.0.0"
+
+home: https://github.com/scout-io/scout
+sources:
+  - https://github.com/scout-io/scout
+keywords:
+  - ab-testing
+  - multi-armed-bandit
+  - optimization
+  - machine-learning
+maintainers:
+  - name: Scout Team
+    email: team@scout.io
+
+dependencies:
+  - name: redis
+    version: 19.x.x
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled

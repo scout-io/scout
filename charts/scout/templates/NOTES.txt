@@ -1,0 +1,24 @@
+Scout has been installed.
+
+Access:
+  - If Ingress is enabled:
+      Host: {{ (index .Values.ingress.hosts 0).host }}
+      Path: /
+  - Otherwise:
+      kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "scout.nginx.fullname" . }} 8080:{{ .Values.nginx.service.port }}
+      Then visit: http://localhost:8080
+
+Admin/auth:
+  - Protected API: {{ ternary "enabled" "disabled" .Values.security.protectedApi }}
+  - To set token after install:
+      kubectl create secret generic {{ include "scout.fullname" . }}-secrets \
+        --from-literal=SCOUT_PROTECTED_API=true \
+        --from-literal=SCOUT_AUTH_TOKEN=<your-token> \
+        -n {{ .Release.Namespace }} --dry-run=client -o yaml | kubectl apply -f -
+      kubectl rollout restart deploy/{{ include "scout.backend.fullname" . }} -n {{ .Release.Namespace }}
+
+Prometheus:
+  - If enabled, port-forward:
+      kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "scout.fullname" . }}-prometheus 9090:9090
+      Visit: http://localhost:9090
+

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "scout.fullname" . }}-config
+  labels:
+    {{- include "scout.labels" . | nindent 4 }}
+data:
+  REDIS_HOST: |
+    {{- if .Values.externalRedis.enabled -}}
+    {{ .Values.externalRedis.host }}
+    {{- else if .Values.redis.enabled -}}
+    {{ printf "%s-redis-master" (include "scout.fullname" .) }}
+    {{- else -}}
+    {{ .Values.backend.env.REDIS_HOST }}
+    {{- end }}
+  REDIS_PORT: |
+    {{- if .Values.externalRedis.enabled -}}
+    {{ .Values.externalRedis.port }}
+    {{- else -}}
+    {{ .Values.backend.env.REDIS_PORT }}
+    {{- end }}
+  REDIS_CONTEXT_TTL: {{ .Values.backend.env.REDIS_CONTEXT_TTL | quote }}
+  SCOUT_HOST: {{ .Values.backend.env.SCOUT_HOST | quote }}
+  SCOUT_PORT: {{ .Values.backend.env.SCOUT_PORT | quote }}
+  SCOUT_DEBUG: {{ .Values.backend.env.SCOUT_DEBUG | quote }}
+  SCOUT_REDIS_ENABLED: {{ .Values.backend.env.SCOUT_REDIS_ENABLED | quote }}
+  SCOUT_DISABLE_DOCKER_LOGS: {{ .Values.backend.env.SCOUT_DISABLE_DOCKER_LOGS | quote }}
+
